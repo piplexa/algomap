@@ -1,32 +1,113 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# === Go ===
+# Binaries
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+bin/
+dist/
 
 # Test binary, built with `go test -c`
 *.test
 
-# Code coverage profiles and other test artifacts
+# Output of the go coverage tool
 *.out
-coverage.*
-*.coverprofile
-profile.cov
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
+coverage.txt
+coverage.html
 
 # Go workspace file
 go.work
-go.work.sum
 
-# env file
+# Dependency directories
+vendor/
+
+# IDE - GoLand
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# === Frontend (React) ===
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Production builds
+build/
+dist/
+.next/
+out/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.DS_Store
+*.pem
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# IDE - VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# === Database ===
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# PostgreSQL
+postgres-data/
+pgdata/
+
+# === Docker ===
+docker-compose.override.yml
+
+# === Logs ===
+*.log
+logs/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Temporary files ===
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# === Config (с секретами) ===
+.env
+.env.local
+.env.*.local
+config.local.yml
+secrets.yml
+
+# === RabbitMQ ===
+rabbitmq-data/
+
+# === at library (delayed tasks) ===
+at.db
+at-data/
+
+# === Migrations temp files ===
+migrations/.tmp
+
+# === CI/CD ===
+.github/workflows/*.local.yml
