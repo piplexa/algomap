@@ -116,3 +116,5 @@ migrations/.tmp
 backend/.env.api
 backend/.env.worker
 frontend/.env
+
+.env

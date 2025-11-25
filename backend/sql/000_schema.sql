@@ -1,5 +1,5 @@
 -- =====================================================
--- AlgoMap Database Schema
+-- AlgoMap Database Schema 
 -- Initial migration: Core tables for schema execution
 -- =====================================================
 
