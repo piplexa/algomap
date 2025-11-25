@@ -1,2 +1,5 @@
 # algomap
-Draw flowcharts, execute them. Visual workflow automation from learning algorithms to business processes. Free &amp; self-hosted.
+Создавайте блок-схемы и выполняйте их. Визуальная автоматизация рабочих процессов: от алгоритмов обучения до бизнес-процессов. Бесплатно и с собственным хостингом.
+
+TZ по каждому напрвлению в ./docs
+
