@@ -102,6 +102,8 @@ algomap/
 │   │   │   └── logger.go
 │   │   └── config/
 │   │       └── config.go
+│   ├── sql/
+│   │   └── schema.sql
 │   │
 │   ├── go.mod
 │   └── go.sum
