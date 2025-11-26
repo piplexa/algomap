@@ -97,7 +97,10 @@ func (h *SchemaHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	schemas, err := h.repo.List(r.Context(), status, limit, offset)
+	// Получаем id пользователя из context
+	id_user, _ := r.Context().Value(middleware.UserIDKey).(int64)
+
+	schemas, err := h.repo.List(r.Context(), status, limit, offset, id_user)
 	if err != nil {
 		h.respondError(w, http.StatusInternalServerError, "Failed to list schemas")
 		return

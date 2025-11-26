@@ -97,16 +97,16 @@ func (r *SchemaRepository) GetByID(ctx context.Context, id int64) (*domain.Schem
 }
 
 // List возвращает список схем с опциональной фильтрацией
-func (r *SchemaRepository) List(ctx context.Context, status *int16, limit, offset int) ([]*domain.Schema, error) {
+func (r *SchemaRepository) List(ctx context.Context, status *int16, limit, offset int, id_user int64) ([]*domain.Schema, error) {
 	query := `
 		SELECT id, name, description, definition, id_status, created_by, created_at, updated_at
 		FROM main.schemas
-		WHERE ($1::SMALLINT IS NULL OR id_status = $1)
+		WHERE ($1::SMALLINT IS NULL OR id_status = $1) and created_by = $4
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.db.Pool.Query(ctx, query, status, limit, offset)
+	rows, err := r.db.Pool.Query(ctx, query, status, limit, offset, id_user)
 	if err != nil {
 		r.logger.Error("Failed to list schemas", zap.Error(err))
 		return nil, fmt.Errorf("failed to list schemas: %w", err)
