@@ -111,3 +111,10 @@ migrations/.tmp
 
 # === CI/CD ===
 .github/workflows/*.local.yml
+
+################################################################
+backend/.env.api
+backend/.env.worker
+frontend/.env
+
+.env
