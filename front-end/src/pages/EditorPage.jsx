@@ -16,6 +16,7 @@ import NodeConfigPanel from '../components/NodeConfigPanel';
 import DebugModal from '../components/DebugModal';
 import { useSchemasStore } from '../store/schemasStore';
 import { NODE_DEFINITIONS } from '../utils/nodeTypes';
+import { executionsAPI } from '../api/client';
 import '../styles/Editor.css';
 
 const nodeTypes = {
@@ -36,6 +37,7 @@ export default function EditorPage() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [schemaName, setSchemaName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
   const [showDebugModal, setShowDebugModal] = useState(false);
 
   // Загрузка схемы
@@ -191,6 +193,30 @@ export default function EditorPage() {
     }
   };
 
+  // Запуск схемы
+  const handleRunSchema = async () => {
+    setIsRunning(true);
+
+    try {
+      const response = await executionsAPI.create(id);
+      const execution = response.data;
+
+      console.log('🚀 Схема запущена!', {
+        schema_id: id,
+        execution_id: execution.id,
+        nodes: nodes.length,
+        edges: edges.length
+      });
+
+      alert(`✅ Схема отправлена на выполнение!\nExecution ID: ${execution.id}`);
+    } catch (error) {
+      console.error('Ошибка запуска схемы:', error);
+      alert(`❌ Ошибка запуска схемы: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   return (
     <div className="editor-container">
       <header className="editor-header">
@@ -214,18 +240,12 @@ export default function EditorPage() {
           >
             🐛 Отладка
           </button>
-          <button 
-            onClick={() => {
-              console.log('🚀 Схема запущена!', { 
-                schema_id: id, 
-                nodes: nodes.length, 
-                edges: edges.length 
-              });
-              alert('🚀 Схема отправлена на выполнение!\n(Функция выполнения будет реализована позже)');
-            }} 
+          <button
+            onClick={handleRunSchema}
             className="btn-success"
+            disabled={isRunning}
           >
-            ▶️ Запустить
+            {isRunning ? '⏳ Запуск...' : '▶️ Запустить'}
           </button>
           <span className="editor-hint">
             💡 Удалить: выделить → Delete

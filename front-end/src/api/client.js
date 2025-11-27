@@ -60,4 +60,23 @@ export const schemasAPI = {
     api.delete(`/schemas/${id}`),
 };
 
+// === Executions API ===
+export const executionsAPI = {
+  create: (schemaId, triggerPayload = { test: "data" }, debugMode = false) =>
+    api.post('/executions', {
+      schema_id: parseInt(schemaId, 10),
+      trigger_payload: triggerPayload,
+      debug_mode: debugMode
+    }),
+
+  getById: (id) =>
+    api.get(`/executions/${id}`),
+
+  getSteps: (id) =>
+    api.get(`/executions/${id}/steps`),
+
+  getState: (id) =>
+    api.get(`/executions/${id}/state`),
+};
+
 export default api;
