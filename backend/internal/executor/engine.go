@@ -59,8 +59,8 @@ type ExecutionState struct {
 	UpdatedAt     time.Time               `json:"updated_at"`
 }
 
-// Execute выполняет один шаг схемы
-func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) error {
+// Execute выполняет один шаг схемы и возвращает ID следующей ноды (если есть)
+func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, error) {
 	e.logger.Info("executing node",
 		zap.String("execution_id", msg.ExecutionID),
 		zap.String("node_id", msg.CurrentNodeID),
@@ -73,14 +73,14 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) error {
 	// Начинаем транзакцию
 	tx, err := e.db.BeginTx(execCtx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	// 1. Загружаем состояние выполнения
 	state, err := e.loadExecutionState(execCtx, tx, msg.ExecutionID)
 	if err != nil {
-		return fmt.Errorf("failed to load execution state: %w", err)
+		return nil, fmt.Errorf("failed to load execution state: %w", err)
 	}
 
 	// Если state == nil, это первый запуск - инициализируем
@@ -91,19 +91,19 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) error {
 	// 2. Загружаем схему
 	schema, err := e.loadSchema(execCtx, tx, msg.SchemaID)
 	if err != nil {
-		return fmt.Errorf("failed to load schema: %w", err)
+		return nil, fmt.Errorf("failed to load schema: %w", err)
 	}
 
 	// 3. Находим ноду
 	node := e.findNode(schema, msg.CurrentNodeID)
 	if node == nil {
-		return fmt.Errorf("node not found: %s", msg.CurrentNodeID)
+		return nil, fmt.Errorf("node not found: %s", msg.CurrentNodeID)
 	}
 
-	// 4. Получаем обработчик ноды
-	handler, ok := e.registry.Get(node.Type)
+	// 4. Получаем обработчик ноды (используем реальный тип из data.type)
+	handler, ok := e.registry.Get(node.Data.Type)
 	if !ok {
-		return fmt.Errorf("handler not found for node type: %s", node.Type)
+		return nil, fmt.Errorf("handler not found for node type: %s", node.Data.Type)
 	}
 
 	// 5. Выполняем ноду
@@ -122,7 +122,7 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) error {
 
 	// 6. Сохраняем шаг в execution_steps
 	if err := e.saveExecutionStep(execCtx, tx, msg.ExecutionID, node, result, startedAt, finishedAt); err != nil {
-		return fmt.Errorf("failed to save execution step: %w", err)
+		return nil, fmt.Errorf("failed to save execution step: %w", err)
 	}
 
 	// 7. Обновляем контекст
@@ -130,7 +130,7 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) error {
 
 	// 8. Определяем следующую ноду
 	var nextNodeID *string
-	if result.Status == nodes.StatusSuccess && node.Type != domain.NodeTypeEnd {
+	if result.Status == nodes.StatusSuccess && node.Data.Type != domain.NodeTypeEnd {
 		nextNodeID = e.findNextNode(schema, msg.CurrentNodeID)
 	}
 
@@ -142,17 +142,17 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) error {
 	state.UpdatedAt = time.Now()
 
 	if err := e.saveExecutionState(execCtx, tx, state); err != nil {
-		return fmt.Errorf("failed to save execution state: %w", err)
+		return nil, fmt.Errorf("failed to save execution state: %w", err)
 	}
 
 	// 10. Обновляем статус execution
 	if err := e.updateExecutionStatus(execCtx, tx, msg, result, nextNodeID); err != nil {
-		return fmt.Errorf("failed to update execution status: %w", err)
+		return nil, fmt.Errorf("failed to update execution status: %w", err)
 	}
 
 	// Коммитим транзакцию
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	e.logger.Info("node executed successfully",
@@ -161,10 +161,8 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) error {
 		zap.String("status", result.Status),
 	)
 
-	// TODO: 11. Обработка результата (публикация следующего сообщения, sleep, etc)
-	// Это будет делать caller (worker), который получит nextNodeID из результата
-
-	return nil
+	// Возвращаем ID следующей ноды (если есть)
+	return nextNodeID, nil
 }
 
 // initializeState создаёт начальное состояние
@@ -265,7 +263,7 @@ func (e *Engine) saveExecutionStep(
 			output, id_status, error,
 			started_at, finished_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, executionID, node.ID, node.Type, outputJSON, status, result.Error, startedAt, finishedAt)
+	`, executionID, node.ID, node.Data.Type, outputJSON, status, result.Error, startedAt, finishedAt)
 
 	return err
 }

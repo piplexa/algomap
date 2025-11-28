@@ -24,7 +24,7 @@ func NewSleepHandler() *SleepHandler {
 // Execute выполняет sleep ноду
 func (h *SleepHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext) (*NodeResult, error) {
 	var config SleepConfig
-	if err := json.Unmarshal(node.Data, &config); err != nil {
+	if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 		errMsg := fmt.Sprintf("failed to parse sleep config: %v", err)
 		return &NodeResult{
 			Status: StatusFailed,

@@ -18,58 +18,50 @@ const (
 
 // Consumer обработчик сообщений из RabbitMQ
 type Consumer struct {
-	conn    *amqp091.Connection
-	channel *amqp091.Channel
-	logger  *zap.Logger
-	engine  *executor.Engine
+	conn      *Connection
+	logger    *zap.Logger
+	engine    *executor.Engine
+	publisher *Publisher
 }
 
 // NewConsumer создаёт новый consumer
 func NewConsumer(amqpURL string, logger *zap.Logger, engine *executor.Engine) (*Consumer, error) {
-	conn, err := amqp091.Dial(amqpURL)
+	// Создаём connection
+	conn, err := NewConnection(amqpURL, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
+		return nil, fmt.Errorf("failed to create connection: %w", err)
 	}
 
-	channel, err := conn.Channel()
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to open channel: %w", err)
-	}
+	// Создаём publisher для автопубликации следующих нод
+	publisher := NewPublisher(conn, logger)
 
-	// Устанавливаем prefetch count = 1 для равномерного распределения
-	if err := channel.Qos(1, 0, false); err != nil {
-		channel.Close()
-		conn.Close()
-		return nil, fmt.Errorf("failed to set QoS: %w", err)
-	}
-
-	// Объявляем очередь (durable)
-	_, err = channel.QueueDeclare(
-		QueueName, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
-	)
-	if err != nil {
-		channel.Close()
+	// Объявляем очередь
+	if err := publisher.DeclareQueue(QueueName); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to declare queue: %w", err)
 	}
 
 	return &Consumer{
-		conn:    conn,
-		channel: channel,
-		logger:  logger,
-		engine:  engine,
+		conn:      conn,
+		logger:    logger,
+		engine:    engine,
+		publisher: publisher,
 	}, nil
 }
 
 // Start начинает обработку сообщений
 func (c *Consumer) Start(ctx context.Context) error {
-	msgs, err := c.channel.Consume(
+	channel, err := c.conn.GetChannel()
+	if err != nil {
+		return fmt.Errorf("failed to get channel: %w", err)
+	}
+
+	// Устанавливаем prefetch count = 1 для равномерного распределения
+	if err := channel.Qos(1, 0, false); err != nil {
+		return fmt.Errorf("failed to set QoS: %w", err)
+	}
+
+	msgs, err := channel.Consume(
 		QueueName,
 		"",    // consumer tag
 		false, // auto-ack (отключаем, будем ACK вручную)
@@ -112,23 +104,45 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 		return
 	}
 
-	// Выполняем ноду
-	if err := c.engine.Execute(ctx, &execMsg); err != nil {
+	// Выполняем ноду через engine (теперь возвращает nextNodeID)
+	nextNodeID, err := c.engine.Execute(ctx, &execMsg)
+	if err != nil {
 		c.logger.Error("failed to execute node",
 			zap.String("execution_id", execMsg.ExecutionID),
 			zap.String("node_id", execMsg.CurrentNodeID),
 			zap.Error(err),
 		)
-		// TODO: Решить, что делать с failed нодами
-		// Пока просто ACK, чтобы не блокировать очередь
+		// ACK даже при ошибке, чтобы не блокировать очередь
 		msg.Ack(false)
 		return
 	}
 
-	// TODO: Если нода успешна и есть следующая - опубликовать новое сообщение
-	// Это должен делать worker после успешного выполнения
+	// Если есть следующая нода - публикуем новое сообщение
+	if nextNodeID != nil {
+		newMsg := &executor.ExecutionMessage{
+			ExecutionID:   execMsg.ExecutionID,
+			SchemaID:      execMsg.SchemaID,
+			CurrentNodeID: *nextNodeID,
+			DebugMode:     execMsg.DebugMode,
+		}
 
-	// Подтверждаем обработку
+		if err := c.publisher.Publish(ctx, QueueName, newMsg); err != nil {
+			c.logger.Error("failed to publish next message",
+				zap.String("execution_id", execMsg.ExecutionID),
+				zap.String("next_node_id", *nextNodeID),
+				zap.Error(err),
+			)
+			// TODO: Решить что делать если не удалось опубликовать
+			// Варианты: retry, DLQ, отметить execution как failed
+		} else {
+			c.logger.Debug("published next node",
+				zap.String("execution_id", execMsg.ExecutionID),
+				zap.String("next_node_id", *nextNodeID),
+			)
+		}
+	}
+
+	// Подтверждаем обработку текущего сообщения
 	if err := msg.Ack(false); err != nil {
 		c.logger.Error("failed to ack message", zap.Error(err))
 	}
@@ -136,11 +150,8 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 
 // Close закрывает соединение
 func (c *Consumer) Close() error {
-	if c.channel != nil {
-		c.channel.Close()
-	}
 	if c.conn != nil {
-		c.conn.Close()
+		return c.conn.Close()
 	}
 	return nil
 }

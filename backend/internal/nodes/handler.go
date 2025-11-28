@@ -15,10 +15,16 @@ const (
 
 // Node представляет ноду в схеме
 type Node struct {
-	ID     string          `json:"id"`
-	Type   string          `json:"type"`
-	Data   json.RawMessage `json:"data"`
-	Config json.RawMessage `json:"config"`
+	ID   string   `json:"id"`
+	Type string   `json:"type"` // Для React Flow
+	Data NodeData `json:"data"`
+}
+
+// NodeData внутренняя структура с реальным типом и конфигом
+type NodeData struct {
+	Type   string          `json:"type"`   // Реальный тип ноды (start, end, log, etc)
+	Label  string          `json:"label"`  // Метка для UI
+	Config json.RawMessage `json:"config"` // Конфигурация ноды
 }
 
 // NodeResult результат выполнения ноды

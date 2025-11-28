@@ -24,7 +24,7 @@ func NewMathHandler() *MathHandler {
 // Execute выполняет math ноду
 func (h *MathHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext) (*NodeResult, error) {
 	var config MathConfig
-	if err := json.Unmarshal(node.Data, &config); err != nil {
+	if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 		errMsg := fmt.Sprintf("failed to parse math config: %v", err)
 		return &NodeResult{
 			Status: StatusFailed,

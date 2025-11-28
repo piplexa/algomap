@@ -24,7 +24,7 @@ func NewConditionHandler() *ConditionHandler {
 // Execute выполняет condition ноду
 func (h *ConditionHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext) (*NodeResult, error) {
 	var config ConditionConfig
-	if err := json.Unmarshal(node.Data, &config); err != nil {
+	if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 		errMsg := fmt.Sprintf("failed to parse condition config: %v", err)
 		return &NodeResult{
 			Status: StatusFailed,
