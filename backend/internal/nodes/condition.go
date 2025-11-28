@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // ConditionConfig конфигурация condition ноды
 type ConditionConfig struct {
-	Expression string `json:"expression"` // Например: "{{variables.x}} > 10"
-	TrueBranch string `json:"true_branch"`  // ID ноды для true
-	FalseBranch string `json:"false_branch"` // ID ноды для false
+	Expression string `json:"expression"` // Например: "{{x}} > 10"
 }
 
 // ConditionHandler обработчик условий
@@ -27,61 +27,191 @@ func (h *ConditionHandler) Execute(ctx context.Context, node *Node, execCtx *Exe
 	if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 		errMsg := fmt.Sprintf("failed to parse condition config: %v", err)
 		return &NodeResult{
-			Status: StatusFailed,
-			Error:  &errMsg,
+			Status:     StatusFailed,
+			Error:      &errMsg,
+			ExitHandle: "error",
 		}, nil
 	}
 
-	// TODO: Реализовать:
-	// 1. Интерполировать переменные в expression
-	//    expr := interpolateVariables(config.Expression, execCtx)
-	//
-	// 2. Распарсить и вычислить выражение
-	//    Варианты:
-	//    a) Простой парсер для базовых операций (>, <, ==, !=, >=, <=, &&, ||)
-	//    b) Использовать библиотеку типа govaluate
-	//    c) Написать свой DSL
-	//
-	//    result, err := evaluateExpression(expr)
-	//
-	// 3. Определить следующую ноду на основе result
-	//    var nextNode string
-	//    if result {
-	//        nextNode = config.TrueBranch
-	//    } else {
-	//        nextNode = config.FalseBranch
-	//    }
-	//
-	// 4. Вернуть результат
-	//    return &NodeResult{
-	//        Output: map[string]interface{}{
-	//            "expression": config.Expression,
-	//            "result": result,
-	//            "branch": nextNode,
-	//        },
-	//        NextNodeID: &nextNode,
-	//        Status: StatusSuccess,
-	//    }, nil
+	if config.Expression == "" {
+		errMsg := "expression is required"
+		return &NodeResult{
+			Status:     StatusFailed,
+			Error:      &errMsg,
+			ExitHandle: "error",
+		}, nil
+	}
 
-	// Заглушка
-	errMsg := "condition node not implemented yet"
+	// 1. Интерполируем переменные в выражении
+	interpolated := InterpolateString(config.Expression, execCtx)
+
+	// 2. Вычисляем выражение
+	result, err := evaluateExpression(interpolated)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to evaluate expression '%s': %v", interpolated, err)
+		return &NodeResult{
+			Status:     StatusFailed,
+			Error:      &errMsg,
+			ExitHandle: "error",
+		}, nil
+	}
+
+	// 3. Определяем exitHandle на основе результата
+	exitHandle := "false"
+	if result {
+		exitHandle = "true"
+	}
+
 	return &NodeResult{
-		Status: StatusFailed,
-		Error:  &errMsg,
+		Output: map[string]interface{}{
+			"expression":   config.Expression,
+			"interpolated": interpolated,
+			"result":       result,
+		},
+		Status:     StatusSuccess,
+		ExitHandle: exitHandle,
 	}, nil
 }
 
-// TODO: Примеры поддерживаемых выражений:
-// "{{variables.x}} > 10"
-// "{{variables.status}} == 'active'"
-// "{{steps.http_1.output.status_code}} == 200"
-// "{{variables.age}} >= 18 && {{variables.country}} == 'US'"
-// "{{variables.balance}} > 100 || {{variables.is_premium}} == true"
+// evaluateExpression вычисляет простое логическое выражение
+// Поддерживает: >, <, >=, <=, ==, !=, &&, ||
+func evaluateExpression(expr string) (bool, error) {
+	expr = strings.TrimSpace(expr)
 
-// TODO: Реализовать evaluateExpression
-// func evaluateExpression(expr string) (bool, error) {
-//     // Вариант 1: Простой парсер для базовых операций
-//     // Вариант 2: github.com/Knetic/govaluate
-//     // Вариант 3: github.com/antonmedv/expr
-//     return false, fmt.Errorf("not implemented")
-// }
+	// Обрабатываем логические операторы (И, ИЛИ)
+	if strings.Contains(expr, "||") {
+		parts := strings.Split(expr, "||")
+		for _, part := range parts {
+			result, err := evaluateExpression(strings.TrimSpace(part))
+			if err != nil {
+				return false, err
+			}
+			if result {
+				return true, nil // Хотя бы одно true
+			}
+		}
+		return false, nil
+	}
+
+	if strings.Contains(expr, "&&") {
+		parts := strings.Split(expr, "&&")
+		for _, part := range parts {
+			result, err := evaluateExpression(strings.TrimSpace(part))
+			if err != nil {
+				return false, err
+			}
+			if !result {
+				return false, nil // Хотя бы одно false
+			}
+		}
+		return true, nil
+	}
+
+	// Обрабатываем операторы сравнения
+	operators := []string{">=", "<=", "==", "!=", ">", "<"}
+	
+	for _, op := range operators {
+		if strings.Contains(expr, op) {
+			parts := strings.SplitN(expr, op, 2)
+			if len(parts) != 2 {
+				return false, fmt.Errorf("invalid expression: %s", expr)
+			}
+
+			left := strings.TrimSpace(parts[0])
+			right := strings.TrimSpace(parts[1])
+
+			return compareValues(left, right, op)
+		}
+	}
+
+	// Если нет операторов - пытаемся интерпретировать как boolean
+	return parseBoolean(expr)
+}
+
+// compareValues сравнивает два значения
+func compareValues(left, right, operator string) (bool, error) {
+	// Пытаемся преобразовать в числа
+	leftNum, leftIsNum := parseNumber(left)
+	rightNum, rightIsNum := parseNumber(right)
+
+	if leftIsNum && rightIsNum {
+		return compareNumbers(leftNum, rightNum, operator), nil
+	}
+
+	// Если не числа - сравниваем как строки
+	return compareStrings(left, right, operator), nil
+}
+
+// parseNumber пытается распарсить строку в число
+func parseNumber(s string) (float64, bool) {
+	s = strings.TrimSpace(s)
+	
+	// Убираем кавычки если есть
+	s = strings.Trim(s, `"'`)
+	
+	num, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, false
+	}
+	return num, true
+}
+
+// compareNumbers сравнивает числа
+func compareNumbers(left, right float64, operator string) bool {
+	switch operator {
+	case ">":
+		return left > right
+	case "<":
+		return left < right
+	case ">=":
+		return left >= right
+	case "<=":
+		return left <= right
+	case "==":
+		return left == right
+	case "!=":
+		return left != right
+	default:
+		return false
+	}
+}
+
+// compareStrings сравнивает строки
+func compareStrings(left, right, operator string) bool {
+	// Убираем кавычки
+	left = strings.Trim(strings.TrimSpace(left), `"'`)
+	right = strings.Trim(strings.TrimSpace(right), `"'`)
+
+	switch operator {
+	case "==":
+		return left == right
+	case "!=":
+		return left != right
+	case ">":
+		return left > right
+	case "<":
+		return left < right
+	case ">=":
+		return left >= right
+	case "<=":
+		return left <= right
+	default:
+		return false
+	}
+}
+
+// parseBoolean пытается распарсить строку как boolean
+func parseBoolean(s string) (bool, error) {
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, `"'`)
+	s = strings.ToLower(s)
+
+	switch s {
+	case "true", "1", "yes":
+		return true, nil
+	case "false", "0", "no", "":
+		return false, nil
+	default:
+		return false, fmt.Errorf("cannot parse '%s' as boolean", s)
+	}
+}
