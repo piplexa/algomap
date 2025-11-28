@@ -40,20 +40,68 @@ export default function CustomNode({ data, isConnectable }) {
             />
           ) : (
             <>
-              <Handle
-                type="source"
-                position={Position.Bottom}
-                id="success"
-                style={{ left: '33%' }}
-                isConnectable={isConnectable}
-              />
-              <Handle
-                type="source"
-                position={Position.Bottom}
-                id="error"
-                style={{ left: '66%' }}
-                isConnectable={isConnectable}
-              />
+              {/* Для HTTP_REQUEST: success/error */}
+              {data.type === 'http_request' && (
+                <>
+                  <Handle
+                    type="source"
+                    position={Position.Bottom}
+                    id="success"
+                    style={{ 
+                      left: '33%',
+                      background: '#10b981',
+                      width: '18px',
+                      height: '18px',
+                      border: '2px solid white'
+                    }}
+                    isConnectable={isConnectable}
+                  />
+                  <Handle
+                    type="source"
+                    position={Position.Bottom}
+                    id="error"
+                    style={{ 
+                      left: '66%',
+                      background: '#ef4444',
+                      width: '18px',
+                      height: '18px',
+                      border: '2px solid white'
+                    }}
+                    isConnectable={isConnectable}
+                  />
+                </>
+              )}
+              {/* Для CONDITION: true/false */}
+              {data.type === 'condition' && (
+                <>
+                  <Handle
+                    type="source"
+                    position={Position.Bottom}
+                    id="true"
+                    style={{ 
+                      left: '33%',
+                      background: '#10b981',
+                      width: '18px',
+                      height: '18px',
+                      border: '2px solid white'
+                    }}
+                    isConnectable={isConnectable}
+                  />
+                  <Handle
+                    type="source"
+                    position={Position.Bottom}
+                    id="false"
+                    style={{ 
+                      left: '66%',
+                      background: '#ef4444',
+                      width: '18px',
+                      height: '18px',
+                      border: '2px solid white'
+                    }}
+                    isConnectable={isConnectable}
+                  />
+                </>
+              )}
             </>
           )}
         </>

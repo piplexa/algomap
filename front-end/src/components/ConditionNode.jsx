@@ -30,17 +30,29 @@ export default function ConditionNode({ data, isConnectable }) {
         </div>
       </div>
 
-      {/* Два выхода: true и false */}
+      {/* Два выхода: true (справа, зелёный) и false (слева, красный) */}
       <Handle
         type="source"
         position={Position.Right}
         id="true"
+        style={{
+          background: '#10b981',
+          width: '18px',
+          height: '18px',
+          border: '2px solid white'
+        }}
         isConnectable={isConnectable}
       />
       <Handle
         type="source"
         position={Position.Left}
         id="false"
+        style={{
+          background: '#ef4444',
+          width: '18px',
+          height: '18px',
+          border: '2px solid white'
+        }}
         isConnectable={isConnectable}
       />
     </div>
