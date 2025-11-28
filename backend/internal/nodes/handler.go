@@ -15,9 +15,9 @@ const (
 
 // Node представляет ноду в схеме
 type Node struct {
-	ID   string   `json:"id"`
-	Type string   `json:"type"` // Для React Flow
-	Data NodeData `json:"data"`
+	ID   string          `json:"id"`
+	Type string          `json:"type"` // Это для React Flow
+	Data NodeData        `json:"data"`
 }
 
 // NodeData внутренняя структура с реальным типом и конфигом
@@ -34,6 +34,7 @@ type NodeResult struct {
 	Status     string                 `json:"status"`
 	Error      *string                `json:"error,omitempty"`
 	SleepUntil *time.Time             `json:"sleep_until,omitempty"`
+	ExitHandle string                 `json:"exit_handle,omitempty"` // "success", "error", "true", "false"
 }
 
 // ExecutionContext контекст выполнения схемы

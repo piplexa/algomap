@@ -38,7 +38,7 @@ func (h *LogHandler) Execute(ctx context.Context, node *Node, execCtx *Execution
 	}
 
 	// Интерполируем переменные в сообщении
-	message := interpolateVariables(config.Message, execCtx)
+	message := InterpolateString(config.Message, execCtx)
 
 	// Логируем в зависимости от уровня
 	switch config.Level {
@@ -59,12 +59,4 @@ func (h *LogHandler) Execute(ctx context.Context, node *Node, execCtx *Execution
 		},
 		Status: StatusSuccess,
 	}, nil
-}
-
-// interpolateVariables заменяет {{переменные}} на реальные значения
-// TODO: Реализовать полноценный парсер выражений
-func interpolateVariables(template string, ctx *ExecutionContext) string {
-	// Пока просто возвращаем как есть
-	// В будущем здесь будет парсинг {{...}} выражений
-	return template
 }

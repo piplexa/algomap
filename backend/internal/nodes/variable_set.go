@@ -8,8 +8,8 @@ import (
 
 // VariableSetConfig конфигурация variable_set ноды
 type VariableSetConfig struct {
-	VariableName  string      `json:"variable_name"`
-	VariableValue interface{} `json:"variable_value"`
+	Variable string      `json:"variable"` // ← Исправлено с variable_name
+	Value    interface{} `json:"value"`    // ← Исправлено с variable_value
 }
 
 // VariableSetHandler обработчик ноды установки переменной
@@ -31,8 +31,8 @@ func (h *VariableSetHandler) Execute(ctx context.Context, node *Node, execCtx *E
 		}, nil
 	}
 
-	if config.VariableName == "" {
-		errMsg := "variable_name is required"
+	if config.Variable == "" { // ← Исправлено с VariableName
+		errMsg := "variable is required"
 		return &NodeResult{
 			Status: StatusFailed,
 			Error:  &errMsg,
@@ -40,18 +40,18 @@ func (h *VariableSetHandler) Execute(ctx context.Context, node *Node, execCtx *E
 	}
 
 	// TODO: Интерполировать значение если это строка с {{...}}
-	value := config.VariableValue
+	value := config.Value // ← Исправлено с VariableValue
 
 	// Устанавливаем переменную в контекст
 	if execCtx.Variables == nil {
 		execCtx.Variables = make(map[string]interface{})
 	}
-	execCtx.Variables[config.VariableName] = value
+	execCtx.Variables[config.Variable] = value // ← Исправлено с VariableName
 
 	return &NodeResult{
 		Output: map[string]interface{}{
-			"variable_name":  config.VariableName,
-			"variable_value": value,
+			"variable": config.Variable, // ← Исправлено
+			"value":    value,           // ← Исправлено
 		},
 		Status: StatusSuccess,
 	}, nil

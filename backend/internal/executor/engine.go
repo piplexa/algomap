@@ -47,8 +47,9 @@ type SchemaDefinition struct {
 
 // SchemaEdge связь между нодами
 type SchemaEdge struct {
-	Source string `json:"source"`
-	Target string `json:"target"`
+	Source       string `json:"source"`
+	Target       string `json:"target"`
+	SourceHandle string `json:"sourceHandle,omitempty"` // "success", "error", "true", "false"
 }
 
 // ExecutionState состояние выполнения
@@ -130,8 +131,18 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 
 	// 8. Определяем следующую ноду
 	var nextNodeID *string
-	if result.Status == nodes.StatusSuccess && node.Data.Type != domain.NodeTypeEnd {
-		nextNodeID = e.findNextNode(schema, msg.CurrentNodeID)
+	if node.Data.Type != domain.NodeTypeEnd {
+		// Для failed статуса ищем error выход, для success - success выход
+		exitHandle := result.ExitHandle
+		if exitHandle == "" {
+			// Если обработчик не указал exitHandle, используем дефолтные
+			if result.Status == nodes.StatusFailed {
+				exitHandle = "error"
+			} else if result.Status == nodes.StatusSuccess {
+				exitHandle = "success"
+			}
+		}
+		nextNodeID = e.findNextNode(schema, msg.CurrentNodeID, exitHandle)
 	}
 
 	// 9. Сохраняем обновлённое состояние
@@ -275,14 +286,70 @@ func (e *Engine) updateContext(ctx *nodes.ExecutionContext, nodeID string, resul
 	}
 }
 
-// findNextNode находит следующую ноду через edges
-func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string) *string {
-	for _, edge := range schema.Edges {
-		if edge.Source == currentNodeID {
-			return &edge.Target
+// findNextNode находит следующую ноду через edges с учётом exitHandle
+func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, exitHandle string) *string {
+	var defaultEdge *string
+	
+	e.logger.Debug("searching for next node",
+		zap.String("current_node", currentNodeID),
+		zap.String("exit_handle", exitHandle),
+		zap.Int("total_edges", len(schema.Edges)),
+	)
+	
+	// Ищем edge для текущей ноды
+	for i, edge := range schema.Edges {
+		e.logger.Debug("checking edge",
+			zap.Int("index", i),
+			zap.String("source", edge.Source),
+			zap.String("target", edge.Target),
+			zap.String("sourceHandle", edge.SourceHandle),
+		)
+		
+		if edge.Source != currentNodeID {
+			continue
+		}
+		
+		e.logger.Debug("found matching source",
+			zap.String("target", edge.Target),
+			zap.String("sourceHandle", edge.SourceHandle),
+		)
+		
+		// Если у edge есть конкретный sourceHandle и он совпадает - возвращаем сразу
+		if edge.SourceHandle != "" && edge.SourceHandle != "output" && edge.SourceHandle == exitHandle {
+			e.logger.Info("found specific exit path",
+				zap.String("exit_handle", exitHandle),
+				zap.String("next_node", edge.Target),
+			)
+			target := edge.Target
+			return &target
+		}
+		
+		// Если у edge нет sourceHandle, или sourceHandle == "output" - это дефолтный путь
+		// React Flow использует "output" как дефолтный handle
+		if edge.SourceHandle == "" || edge.SourceHandle == "output" {
+			if defaultEdge == nil {
+				e.logger.Debug("found default edge",
+					zap.String("target", edge.Target),
+				)
+				target := edge.Target  // Копируем значение!
+				defaultEdge = &target
+			}
 		}
 	}
-	return nil
+	
+	// Возвращаем дефолтный путь
+	if defaultEdge != nil {
+		e.logger.Info("using default path",
+			zap.String("next_node", *defaultEdge),
+		)
+	} else {
+		e.logger.Warn("no next node found",
+			zap.String("current_node", currentNodeID),
+			zap.String("exit_handle", exitHandle),
+		)
+	}
+	
+	return defaultEdge
 }
 
 // saveExecutionState сохраняет состояние в БД
