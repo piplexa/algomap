@@ -11,16 +11,26 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import CustomNode from '../components/CustomNode';
+import ConditionNode from '../components/ConditionNode';
 import NodesPalette from '../components/NodesPalette';
 import NodeConfigPanel from '../components/NodeConfigPanel';
 import DebugModal from '../components/DebugModal';
 import { useSchemasStore } from '../store/schemasStore';
-import { NODE_DEFINITIONS } from '../utils/nodeTypes';
+import { NODE_DEFINITIONS, NODE_TYPES } from '../utils/nodeTypes';
 import { executionsAPI } from '../api/client';
 import '../styles/Editor.css';
 
+// Регистрируем компоненты для каждого типа нод
 const nodeTypes = {
-  custom: CustomNode,
+  [NODE_TYPES.START]: CustomNode,
+  [NODE_TYPES.END]: CustomNode,
+  [NODE_TYPES.LOG]: CustomNode,
+  [NODE_TYPES.HTTP_REQUEST]: CustomNode,
+  [NODE_TYPES.CONDITION]: ConditionNode,  // Условие рендерится как ромб
+  [NODE_TYPES.VARIABLE_SET]: CustomNode,
+  [NODE_TYPES.SLEEP]: CustomNode,
+  [NODE_TYPES.MATH]: CustomNode,
+  [NODE_TYPES.RABBITMQ_PUBLISH]: CustomNode,
 };
 
 let nodeIdCounter = 1;
@@ -55,7 +65,8 @@ export default function EditorPage() {
       if (currentSchema.definition?.nodes) {
         const loadedNodes = currentSchema.definition.nodes.map((node) => ({
           ...node,
-          type: 'custom',
+          // Используем реальный тип из data, или если его нет - из node.type
+          type: node.data?.type || node.type,
           data: {
             ...node.data,
             selected: false,
@@ -98,10 +109,10 @@ export default function EditorPage() {
       const definition = NODE_DEFINITIONS[nodeType];
       const newNode = {
         id: `${nodeType}_${nodeIdCounter++}`,
-        type: 'custom',
+        type: nodeType,  // Используем реальный тип ноды
         position,
         data: {
-          type: nodeType,
+          type: nodeType,  // Сохраняем тип и в data для совместимости
           label: definition.label,
           config: { ...definition.config },
           selected: false,
@@ -167,6 +178,7 @@ export default function EditorPage() {
     setIsSaving(true);
 
     // Убираем поле selected перед сохранением
+    // Теперь node.type содержит реальный тип (start, log, condition и т.д.)
     const cleanNodes = nodes.map(({ data, ...node }) => ({
       ...node,
       data: {
