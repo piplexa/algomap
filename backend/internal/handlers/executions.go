@@ -81,6 +81,17 @@ func (h *ExecutionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ищем стартовую ноду в схеме
+	startNodeID, err := h.findStartNode(schema.Definition)
+	if err != nil {
+		h.logger.Error("Failed to find start node",
+			zap.Error(err),
+			zap.Int64("schema_id", req.SchemaID),
+		)
+		h.respondError(w, http.StatusBadRequest, "Schema must have a start node")
+		return
+	}
+
 	// Проверяем что схема активна
 	if schema.Status != domain.SchemaStatusActive {
 		h.respondError(w, http.StatusBadRequest, "Schema is not active")
@@ -102,7 +113,7 @@ func (h *ExecutionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	message := map[string]interface{}{
 		"execution_id":    execution.ID,
 		"schema_id":       execution.SchemaID,
-		"current_node_id": "start", // начинаем с start ноды
+		"current_node_id": startNodeID,
 		"debug_mode":      req.DebugMode,
 	}
 
@@ -185,4 +196,38 @@ func (h *ExecutionHandler) respondError(w http.ResponseWriter, statusCode int, m
 	h.respondJSON(w, statusCode, map[string]string{
 		"error": message,
 	})
+}
+
+// ReactFlowNode представляет структуру ноды из ReactFlow
+type ReactFlowNode struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+}
+
+// ReactFlowDefinition представляет структуру схемы из ReactFlow
+type ReactFlowDefinition struct {
+	Nodes []ReactFlowNode `json:"nodes"`
+}
+
+// findStartNode ищет ноду с типом "start" в definition схемы
+func (h *ExecutionHandler) findStartNode(definition json.RawMessage) (string, error) {
+	var def ReactFlowDefinition
+	if err := json.Unmarshal(definition, &def); err != nil {
+		return "", err
+	}
+
+	for _, node := range def.Nodes {
+		if node.Type == "start" {
+			return node.ID, nil
+		}
+	}
+
+	return "", &ErrStartNodeNotFound{}
+}
+
+// ErrStartNodeNotFound ошибка когда стартовая нода не найдена
+type ErrStartNodeNotFound struct{}
+
+func (e *ErrStartNodeNotFound) Error() string {
+	return "start node not found in schema definition"
 }
