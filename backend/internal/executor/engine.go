@@ -13,12 +13,40 @@ import (
 	"github.com/piplexa/algomap/internal/nodes"
 )
 
-// Engine движок выполнения схем
+// Engine - движок выполнения схем
 type Engine struct {
 	db       *sql.DB
 	logger   *zap.Logger
 	registry *nodes.HandlerRegistry
-	timeout  time.Duration
+}
+
+// ExecutionMessage - сообщение из RabbitMQ
+type ExecutionMessage struct {
+	ExecutionID   string `json:"execution_id"`
+	SchemaID      int64  `json:"schema_id"`
+	CurrentNodeID string `json:"current_node_id"`
+	DebugMode     bool   `json:"debug_mode"`
+}
+
+// ExecutionState - состояние выполнения
+type ExecutionState struct {
+	ExecutionID   string
+	CurrentNodeID string
+	Context       *nodes.ExecutionContext
+	UpdatedAt     time.Time
+}
+
+// SchemaDefinition - определение схемы
+type SchemaDefinition struct {
+	Nodes []nodes.Node `json:"nodes"`
+	Edges []Edge       `json:"edges"`
+}
+
+// Edge - связь между нодами
+type Edge struct {
+	Source       string `json:"source"`
+	Target       string `json:"target"`
+	SourceHandle string `json:"sourceHandle,omitempty"`
 }
 
 // NewEngine создаёт новый движок
@@ -27,48 +55,18 @@ func NewEngine(db *sql.DB, logger *zap.Logger, registry *nodes.HandlerRegistry) 
 		db:       db,
 		logger:   logger,
 		registry: registry,
-		timeout:  30 * time.Second, // Таймаут на выполнение одной ноды
 	}
 }
 
-// ExecutionMessage сообщение из RabbitMQ
-type ExecutionMessage struct {
-	ExecutionID   string `json:"execution_id"`
-	SchemaID      int64  `json:"schema_id"`
-	CurrentNodeID string `json:"current_node_id"`
-	DebugMode     bool   `json:"debug_mode"`
-}
-
-// SchemaDefinition определение схемы
-type SchemaDefinition struct {
-	Nodes []nodes.Node  `json:"nodes"`
-	Edges []SchemaEdge  `json:"edges"`
-}
-
-// SchemaEdge связь между нодами
-type SchemaEdge struct {
-	Source       string `json:"source"`
-	Target       string `json:"target"`
-	SourceHandle string `json:"sourceHandle,omitempty"` // "success", "error", "true", "false"
-}
-
-// ExecutionState состояние выполнения
-type ExecutionState struct {
-	ExecutionID   string                  `json:"execution_id"`
-	CurrentNodeID string                  `json:"current_node_id"`
-	Context       *nodes.ExecutionContext `json:"context"`
-	UpdatedAt     time.Time               `json:"updated_at"`
-}
-
-// Execute выполняет один шаг схемы и возвращает ID следующей ноды (если есть)
+// Execute выполняет одну ноду и возвращает ID следующей ноды (если есть)
 func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, error) {
 	e.logger.Info("executing node",
 		zap.String("execution_id", msg.ExecutionID),
 		zap.String("node_id", msg.CurrentNodeID),
 	)
 
-	// Создаём контекст с таймаутом
-	execCtx, cancel := context.WithTimeout(ctx, e.timeout)
+	// Создаём контекст с таймаутом для транзакции
+	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	// Начинаем транзакцию
@@ -78,13 +76,11 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 	}
 	defer tx.Rollback()
 
-	// 1. Загружаем состояние выполнения
+	// 1. Загружаем состояние выполнения (или создаём начальное)
 	state, err := e.loadExecutionState(execCtx, tx, msg.ExecutionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load execution state: %w", err)
 	}
-
-	// Если state == nil, это первый запуск - инициализируем
 	if state == nil {
 		state = e.initializeState(msg)
 	}
@@ -121,9 +117,11 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 		}
 	}
 
-	// 6. Сохраняем шаг в execution_steps
-	if err := e.saveExecutionStep(execCtx, tx, msg.ExecutionID, node, result, startedAt, finishedAt); err != nil {
-		return nil, fmt.Errorf("failed to save execution step: %w", err)
+	// 6. Определяем предыдущую ноду
+	// Для первой ноды (Start) prevNodeID будет nil
+	var prevNodeID *string
+	if state.CurrentNodeID != "" && state.CurrentNodeID != msg.CurrentNodeID {
+		prevNodeID = &state.CurrentNodeID
 	}
 
 	// 7. Обновляем контекст
@@ -145,7 +143,12 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 		nextNodeID = e.findNextNode(schema, msg.CurrentNodeID, exitHandle)
 	}
 
-	// 9. Сохраняем обновлённое состояние
+	// 9. Сохраняем шаг в execution_steps (теперь с prev_node_id и next_node_id)
+	if err := e.saveExecutionStep(execCtx, tx, msg.ExecutionID, node, result, prevNodeID, nextNodeID, startedAt, finishedAt); err != nil {
+		return nil, fmt.Errorf("failed to save execution step: %w", err)
+	}
+
+	// 10. Сохраняем обновлённое состояние
 	state.CurrentNodeID = msg.CurrentNodeID
 	if nextNodeID != nil {
 		state.CurrentNodeID = *nextNodeID
@@ -156,7 +159,7 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 		return nil, fmt.Errorf("failed to save execution state: %w", err)
 	}
 
-	// 10. Обновляем статус execution
+	// 11. Обновляем статус execution
 	if err := e.updateExecutionStatus(execCtx, tx, msg, result, nextNodeID); err != nil {
 		return nil, fmt.Errorf("failed to update execution status: %w", err)
 	}
@@ -256,6 +259,8 @@ func (e *Engine) saveExecutionStep(
 	executionID string,
 	node *nodes.Node,
 	result *nodes.NodeResult,
+	prevNodeID *string,
+	nextNodeID *string,
 	startedAt, finishedAt time.Time,
 ) error {
 	outputJSON, err := json.Marshal(result.Output)
@@ -271,10 +276,13 @@ func (e *Engine) saveExecutionStep(
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO main.execution_steps (
 			execution_id, node_id, node_type,
+			prev_node_id, next_node_id,
 			output, id_status, error,
 			started_at, finished_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, executionID, node.ID, node.Data.Type, outputJSON, status, result.Error, startedAt, finishedAt)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`, executionID, node.ID, node.Data.Type,
+		prevNodeID, nextNodeID,
+		outputJSON, status, result.Error, startedAt, finishedAt)
 
 	return err
 }
@@ -289,13 +297,13 @@ func (e *Engine) updateContext(ctx *nodes.ExecutionContext, nodeID string, resul
 // findNextNode находит следующую ноду через edges с учётом exitHandle
 func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, exitHandle string) *string {
 	var defaultEdge *string
-	
+
 	e.logger.Debug("searching for next node",
 		zap.String("current_node", currentNodeID),
 		zap.String("exit_handle", exitHandle),
 		zap.Int("total_edges", len(schema.Edges)),
 	)
-	
+
 	// Ищем edge для текущей ноды
 	for i, edge := range schema.Edges {
 		e.logger.Debug("checking edge",
@@ -304,16 +312,16 @@ func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, ex
 			zap.String("target", edge.Target),
 			zap.String("sourceHandle", edge.SourceHandle),
 		)
-		
+
 		if edge.Source != currentNodeID {
 			continue
 		}
-		
+
 		e.logger.Debug("found matching source",
 			zap.String("target", edge.Target),
 			zap.String("sourceHandle", edge.SourceHandle),
 		)
-		
+
 		// Если у edge есть конкретный sourceHandle и он совпадает - возвращаем сразу
 		if edge.SourceHandle != "" && edge.SourceHandle != "output" && edge.SourceHandle == exitHandle {
 			e.logger.Info("found specific exit path",
@@ -323,7 +331,7 @@ func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, ex
 			target := edge.Target
 			return &target
 		}
-		
+
 		// Если у edge нет sourceHandle, или sourceHandle == "output" - это дефолтный путь
 		// React Flow использует "output" как дефолтный handle
 		if edge.SourceHandle == "" || edge.SourceHandle == "output" {
@@ -331,12 +339,12 @@ func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, ex
 				e.logger.Debug("found default edge",
 					zap.String("target", edge.Target),
 				)
-				target := edge.Target  // Копируем значение!
+				target := edge.Target
 				defaultEdge = &target
 			}
 		}
 	}
-	
+
 	// Возвращаем дефолтный путь
 	if defaultEdge != nil {
 		e.logger.Info("using default path",
@@ -348,7 +356,7 @@ func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, ex
 			zap.String("exit_handle", exitHandle),
 		)
 	}
-	
+
 	return defaultEdge
 }
 
