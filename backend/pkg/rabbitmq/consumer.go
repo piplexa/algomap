@@ -105,7 +105,8 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 	}
 
 	// Выполняем ноду через engine (теперь возвращает nextNodeID)
-	nextNodeID, err := c.engine.Execute(ctx, &execMsg)
+	nextNodeID, needContinue, err := c.engine.Execute(ctx, &execMsg)
+	c.logger.Debug("После выполнения ноды.", zap.Bool("Надо ли продолжать выполнение схемы: ", *needContinue) );
 	if err != nil {
 		c.logger.Error("failed to execute node",
 			zap.String("execution_id", execMsg.ExecutionID),
@@ -118,7 +119,8 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 	}
 
 	// Если есть следующая нода - публикуем новое сообщение
-	if nextNodeID != nil {
+	// Нода может быть sleep, тогда не нужно отправлять сообщение в очередь - это определяет needContinue
+	if nextNodeID != nil && *needContinue {
 		newMsg := &executor.ExecutionMessage{
 			ExecutionID:   execMsg.ExecutionID,
 			SchemaID:      execMsg.SchemaID,

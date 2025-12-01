@@ -59,7 +59,10 @@ func NewEngine(db *sql.DB, logger *zap.Logger, registry *nodes.HandlerRegistry) 
 }
 
 // Execute выполняет одну ноду и возвращает ID следующей ноды (если есть)
-func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, error) {
+// TODO: вернуть признак: нужно продолжать выполнение схемы или нет. Например при sleep не нужно.
+func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *bool, error) {
+	var needContinue bool = true
+
 	e.logger.Info("executing node",
 		zap.String("execution_id", msg.ExecutionID),
 		zap.String("node_id", msg.CurrentNodeID),
@@ -72,14 +75,14 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 	// Начинаем транзакцию
 	tx, err := e.db.BeginTx(execCtx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, &needContinue, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	// 1. Загружаем состояние выполнения (или создаём начальное)
 	state, err := e.loadExecutionState(execCtx, tx, msg.ExecutionID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load execution state: %w", err)
+		return nil, &needContinue, fmt.Errorf("failed to load execution state: %w", err)
 	}
 	if state == nil {
 		state = e.initializeState(msg)
@@ -88,23 +91,26 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 	// 2. Загружаем схему
 	schema, err := e.loadSchema(execCtx, tx, msg.SchemaID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load schema: %w", err)
+		return nil, &needContinue, fmt.Errorf("failed to load schema: %w", err)
 	}
 
 	// 3. Находим ноду
 	node := e.findNode(schema, msg.CurrentNodeID)
 	if node == nil {
-		return nil, fmt.Errorf("node not found: %s", msg.CurrentNodeID)
+		return nil, &needContinue, fmt.Errorf("node not found: %s", msg.CurrentNodeID)
 	}
 
 	// 4. Получаем обработчик ноды (используем реальный тип из data.type)
 	handler, ok := e.registry.Get(node.Data.Type)
 	if !ok {
-		return nil, fmt.Errorf("handler not found for node type: %s", node.Data.Type)
+		return nil, &needContinue, fmt.Errorf("handler not found for node type: %s", node.Data.Type)
 	}
 
 	// 5. Выполняем ноду
 	startedAt := time.Now()
+	e.logger.Debug("Подготовка к выполнению ноды.",
+		zap.String("node_type", node.Data.Type),
+	)
 	result, err := handler.Execute(execCtx, node, state.Context)
 	finishedAt := time.Now()
 
@@ -115,6 +121,11 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 			Status: nodes.StatusFailed,
 			Error:  &errMsg,
 		}
+	}
+	// Если нода вернула статус sleep, то дальше не продолжаем выполнение схемы, о чем и сигнализируем в движок
+	if node.Data.Type == domain.NodeTypeSleep {
+		e.logger.Debug("Нода типа sleep - нет смысла продолжать работу схемы.")
+		needContinue = false
 	}
 
 	// 6. Определяем предыдущую ноду
@@ -145,7 +156,7 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 
 	// 9. Сохраняем шаг в execution_steps (теперь с prev_node_id и next_node_id)
 	if err := e.saveExecutionStep(execCtx, tx, msg.ExecutionID, node, result, prevNodeID, nextNodeID, startedAt, finishedAt); err != nil {
-		return nil, fmt.Errorf("failed to save execution step: %w", err)
+		return nil, &needContinue, fmt.Errorf("failed to save execution step: %w", err)
 	}
 
 	// 10. Сохраняем обновлённое состояние
@@ -156,17 +167,17 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 	state.UpdatedAt = time.Now()
 
 	if err := e.saveExecutionState(execCtx, tx, state); err != nil {
-		return nil, fmt.Errorf("failed to save execution state: %w", err)
+		return nil, &needContinue, fmt.Errorf("failed to save execution state: %w", err)
 	}
 
 	// 11. Обновляем статус execution
 	if err := e.updateExecutionStatus(execCtx, tx, msg, result, nextNodeID); err != nil {
-		return nil, fmt.Errorf("failed to update execution status: %w", err)
+		return nil, &needContinue, fmt.Errorf("failed to update execution status: %w", err)
 	}
 
 	// Коммитим транзакцию
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, &needContinue, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	e.logger.Info("node executed successfully",
@@ -176,7 +187,7 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, e
 	)
 
 	// Возвращаем ID следующей ноды (если есть)
-	return nextNodeID, nil
+	return nextNodeID, &needContinue, nil
 }
 
 // initializeState создаёт начальное состояние
