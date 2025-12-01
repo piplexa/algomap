@@ -218,7 +218,6 @@ POST   /webhook/:schema_id            - webhook триггер
 ```env
 DATABASE_URL=postgresql://user:pass@localhost:5432/algomap
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-AT_SQLITE_PATH=/data/at.db
 LOG_LEVEL=debug
 PORT=8080
 ```

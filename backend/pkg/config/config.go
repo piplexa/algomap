@@ -35,7 +35,6 @@ func Load() (*Config, error) {
 		DatabaseURL:  getEnv("DATABASE_URL", ""),
 		RabbitMQURL:  getEnv("RABBITMQ_URL", ""),
 		LogLevel:     getEnv("LOG_LEVEL", "info"),
-		AtSQLitePath: getEnv("AT_SQLITE_PATH", "/data/at.db"),
 	}
 
 	// Валидация обязательных параметров
