@@ -16,7 +16,7 @@ export default function ConditionNode({ data, isConnectable }) {
         className={`condition-node ${data.selected ? 'selected' : ''}`}
         style={{ borderColor: definition?.color }}
       >
-        <div className="condition-header" style={{ backgroundColor: definition?.color }}>
+        <div className="condition-header" style={{ backgroundColor: definition?.color, display: 'none' }}>
           <span className="node-icon">{definition?.icon}</span>
           <span className="node-label">{definition?.label}</span>
         </div>
