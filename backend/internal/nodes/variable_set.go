@@ -21,7 +21,7 @@ func NewVariableSetHandler() *VariableSetHandler {
 }
 
 // Execute выполняет variable_set ноду
-func (h *VariableSetHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext) (*NodeResult, error) {
+func (h *VariableSetHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext, preNextIdNode *string) (*NodeResult, error) {
 	var config VariableSetConfig
 	if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 		errMsg := fmt.Sprintf("failed to parse variable_set config: %v", err)

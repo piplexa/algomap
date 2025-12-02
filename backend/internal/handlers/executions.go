@@ -2,17 +2,17 @@ package handlers
 
 // ExecutionHandler - HTTP handlers для управления выполнениями схем
 
-// В первую очередь:
+// Реализованные endpoints:
 // POST   /api/executions                	- запустить схему (manual)
 // GET    /api/executions/:id/steps      	- история шагов
 // GET    /api/executions/:id            	- статус выполнения
+// POST   /api/executions/:id-execution/:id-node/continue  - начать выполнение с указанного узла схемы
 
 // TODO: Реализовать endpoints:
 // POST   /api/executions/:id/pause      	- пауза
 // POST   /api/executions/:id/resume     	- продолжить
 // POST   /api/executions/:id/stop       	- остановить
 // GET    /api/executions/:id/logs       	- логи выполнения
-// POST   /api/executions/:id/:id/continue  - начать выполнение с указанного узла схемы
 // POST   /api/executions/:id/:id/one    	- выполнить только указанный узел схемы
 
 import (
@@ -180,6 +180,66 @@ func (h *ExecutionHandler) GetState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondJSON(w, http.StatusOK, state)
+}
+
+// Continue продолжает выполнение схемы с указанного узла
+// POST /api/executions/:id-execution/:id-node/continue
+func (h *ExecutionHandler) Continue(w http.ResponseWriter, r *http.Request) {
+	executionID := chi.URLParam(r, "id-execution")
+	nodeID := chi.URLParam(r, "id-node")
+
+	h.logger.Info("Continue execution request",
+		zap.String("execution_id", executionID),
+		zap.String("node_id", nodeID),
+	)
+
+	// Получаем execution из БД чтобы получить schema_id
+	execution, err := h.execRepo.GetByID(r.Context(), executionID)
+	if err != nil {
+		h.logger.Error("Failed to get execution",
+			zap.Error(err),
+			zap.String("execution_id", executionID),
+		)
+		h.respondError(w, http.StatusNotFound, "Execution not found")
+		return
+	}
+
+	// Публикуем сообщение в RabbitMQ
+	message := map[string]interface{}{
+		"execution_id":    executionID,
+		"schema_id":       execution.SchemaID,
+		"current_node_id": nodeID,
+		"debug_mode":      false,
+	}
+
+	h.logger.Info("Publishing continue execution to RabbitMQ",
+		zap.String("queueName", h.queueName),
+		zap.String("execution_id", executionID),
+		zap.Int64("schema_id", execution.SchemaID),
+		zap.String("node_id", nodeID),
+	)
+
+	if err := h.rmqPublisher.Publish(r.Context(), h.queueName, message); err != nil {
+		h.logger.Error("Failed to publish continue message to RabbitMQ",
+			zap.Error(err),
+			zap.String("execution_id", executionID),
+			zap.String("node_id", nodeID),
+		)
+		h.respondError(w, http.StatusInternalServerError, "Failed to queue execution")
+		return
+	}
+
+	h.logger.Info("Continue execution published successfully",
+		zap.String("execution_id", executionID),
+		zap.String("node_id", nodeID),
+		zap.Int64("schema_id", execution.SchemaID),
+	)
+
+	h.respondJSON(w, http.StatusOK, map[string]string{
+		"message":      "Execution continue queued successfully",
+		"execution_id": executionID,
+		"node_id":      nodeID,
+	})
 }
 
 // respondJSON отправляет JSON ответ

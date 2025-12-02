@@ -14,7 +14,7 @@ func NewStartHandler() *StartHandler {
 
 // Execute выполняет start ноду
 // Start нода просто возвращает success и позволяет двигаться дальше
-func (h *StartHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext) (*NodeResult, error) {
+func (h *StartHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext, preNextIdNode *string) (*NodeResult, error) {
 	return &NodeResult{
 		Output: map[string]interface{}{
 			"started": true,

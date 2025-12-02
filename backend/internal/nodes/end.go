@@ -14,7 +14,7 @@ func NewEndHandler() *EndHandler {
 
 // Execute выполняет end ноду
 // End нода просто фиксирует завершение выполнения
-func (h *EndHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext) (*NodeResult, error) {
+func (h *EndHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext, preNextIdNode *string) (*NodeResult, error) {
 	return &NodeResult{
 		Output: map[string]interface{}{
 			"completed": true,

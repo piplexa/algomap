@@ -42,7 +42,7 @@ func NewHTTPRequestHandler() *HTTPRequestHandler {
 }
 
 // Execute выполняет http_request ноду
-func (h *HTTPRequestHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext) (*NodeResult, error) {
+func (h *HTTPRequestHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext, preNextIdNode *string) (*NodeResult, error) {
 	var config HTTPRequestConfig
 	if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 		errMsg := fmt.Sprintf("failed to parse http_request config: %v", err)

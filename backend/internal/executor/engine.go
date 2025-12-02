@@ -111,7 +111,11 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *
 	e.logger.Debug("Подготовка к выполнению ноды.",
 		zap.String("node_type", node.Data.Type),
 	)
-	result, err := handler.Execute(execCtx, node, state.Context)
+
+	var preNextNodeID *string
+	preNextNodeID = e.findNextNode(schema, msg.CurrentNodeID, "success")
+
+	result, err := handler.Execute(execCtx, node, state.Context, preNextNodeID)
 	finishedAt := time.Now()
 
 	if err != nil {

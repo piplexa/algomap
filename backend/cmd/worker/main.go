@@ -59,7 +59,7 @@ func main() {
 	registry.Register("log", nodes.NewLogHandler(logger.Log))
 	registry.Register("variable_set", nodes.NewVariableSetHandler())
 	registry.Register("math", nodes.NewMathHandler())
-	registry.Register("sleep", nodes.NewSleepHandler())
+	registry.Register("sleep", nodes.NewSleepHandler(cfg.ATSchedulerURL, cfg.URLExecution, logger.Log))
 	registry.Register("http_request", nodes.NewHTTPRequestHandler())
 	registry.Register("condition", nodes.NewConditionHandler())
 	// TODO: Добавить остальные обработчики

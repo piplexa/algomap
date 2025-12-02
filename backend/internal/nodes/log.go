@@ -27,7 +27,7 @@ func NewLogHandler(logger *zap.Logger) *LogHandler {
 }
 
 // Execute выполняет log ноду
-func (h *LogHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext) (*NodeResult, error) {
+func (h *LogHandler) Execute(ctx context.Context, node *Node, execCtx *ExecutionContext, preNextIdNode *string) (*NodeResult, error) {
 	var config LogConfig
 	if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 		errMsg := fmt.Sprintf("failed to parse log config: %v", err)

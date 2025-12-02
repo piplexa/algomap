@@ -21,8 +21,9 @@ type Config struct {
 	// Logging
 	LogLevel string
 
-	// at library (delayed tasks)
-	AtSQLitePath string
+	// AT Scheduler
+	ATSchedulerURL string
+	URLExecution   string
 }
 
 // Load загружает конфигурацию из переменных окружения
@@ -31,10 +32,12 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		Port:         getEnv("PORT", "8080"),
-		DatabaseURL:  getEnv("DATABASE_URL", ""),
-		RabbitMQURL:  getEnv("RABBITMQ_URL", ""),
-		LogLevel:     getEnv("LOG_LEVEL", "info"),
+		Port:           getEnv("PORT", "8080"),
+		DatabaseURL:    getEnv("DATABASE_URL", ""),
+		RabbitMQURL:    getEnv("RABBITMQ_URL", ""),
+		LogLevel:       getEnv("LOG_LEVEL", "info"),
+		ATSchedulerURL: getEnv("AT_SCHEDULER_URL", ""),
+		URLExecution:   getEnv("URL_EXECUTION", ""),
 	}
 
 	// Валидация обязательных параметров

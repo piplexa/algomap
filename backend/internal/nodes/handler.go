@@ -54,7 +54,7 @@ type StepOutput struct {
 // NodeHandler интерфейс обработчика ноды
 type NodeHandler interface {
 	// Execute выполняет ноду и возвращает результат
-	Execute(ctx context.Context, node *Node, execCtx *ExecutionContext) (*NodeResult, error)
+	Execute(ctx context.Context, node *Node, execCtx *ExecutionContext, preNextIdNode *string) (*NodeResult, error)
 }
 
 // HandlerRegistry реестр обработчиков нод

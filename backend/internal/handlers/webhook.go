@@ -1,6 +1,7 @@
 package handlers
 
 // WebhookHandler - HTTP handlers для webhook триггеров
+// Судя по всему лишние, так как есть executions/...../continue
 
 // TODO: Реализовать endpoints:
 // POST   /webhook/:schema_id              - запуск через webhook

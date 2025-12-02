@@ -102,6 +102,13 @@ func main() {
 		// Публичные endpoints (без auth)
 		r.Post("/users/register", userHandler.Register)
 		r.Post("/auth/login", authHandler.Login)
+		//
+		// TODO: Вот тут надо подумать, как правильно сделать
+		// Скорее всего при вызове из вне, например из AT, нужно указывать какой-то API ключ, чтобы при получении 
+		// запроса, тут было бы понятно, что это доверенный источник и можно запускать схему
+		// Заметки. см. тут; nodes/sleep.go:105
+		//
+		r.Post("/executions/{id-execution}/{id-node}/continue", executionHandler.Continue)
 
 		// Защищённые endpoints (требуют auth)
 		r.Group(func(r chi.Router) {
