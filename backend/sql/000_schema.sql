@@ -153,7 +153,9 @@ CREATE TABLE main.executions (
     created_by BIGINT NOT NULL REFERENCES main.users(id),
     
     -- Ошибка (если есть)
-    error TEXT
+    error TEXT,
+
+    cnt_executed_steps BIGINT NOT NULL DEFAULT 0
 );
 
 COMMENT ON TABLE main.executions IS 'История выполнений схем';
@@ -162,6 +164,7 @@ COMMENT ON COLUMN main.executions.id_status IS '1=pending, 2=running, 3=paused, 
 COMMENT ON COLUMN main.executions.id_trigger_type IS '1=manual, 2=webhook, 3=scheduler, 4=api';
 COMMENT ON COLUMN main.executions.trigger_payload IS 'Входные данные при запуске (например, webhook payload)';
 COMMENT ON COLUMN main.executions.current_step_id IS 'ID ноды, которая сейчас выполняется (для отображения прогресса)';
+COMMENT ON COLUMN main.executions.cnt_executed_steps IS 'Количество выполненных шагов (нужен для прогресса и ограничения по количеству выполняемых шагов)';
 
 -- Индексы для executions
 CREATE INDEX idx_executions_schema_id ON main.executions(schema_id);

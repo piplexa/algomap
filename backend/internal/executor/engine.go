@@ -30,10 +30,11 @@ type ExecutionMessage struct {
 
 // ExecutionState - состояние выполнения
 type ExecutionState struct {
-	ExecutionID   string
-	CurrentNodeID string
-	Context       *nodes.ExecutionContext
-	UpdatedAt     time.Time
+	ExecutionID      string
+	CurrentNodeID    string
+	Context          *nodes.ExecutionContext
+	UpdatedAt        time.Time
+	CntExecutedSteps int64
 }
 
 // SchemaDefinition - определение схемы
@@ -59,7 +60,8 @@ func NewEngine(db *sql.DB, logger *zap.Logger, registry *nodes.HandlerRegistry) 
 }
 
 // Execute выполняет одну ноду и возвращает ID следующей ноды (если есть)
-// TODO: вернуть признак: нужно продолжать выполнение схемы или нет. Например при sleep не нужно.
+// +вернуть признак needContinue: нужно продолжать выполнение схемы или нет. Например при sleep не нужно.
+// TODO: добавить сохранения количества выполненных шагов в main.executions.cnt_executed_steps
 func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *bool, error) {
 	var needContinue bool = true
 
@@ -175,7 +177,9 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *
 	}
 
 	// 11. Обновляем статус execution
-	if err := e.updateExecutionStatus(execCtx, tx, msg, result, nextNodeID); err != nil {
+	// +1 к количеству выполненных шагов
+	state.CntExecutedSteps = state.CntExecutedSteps + 1
+	if err := e.updateExecutionStatus(execCtx, tx, msg, result, nextNodeID, &state.CntExecutedSteps); err != nil {
 		return nil, &needContinue, fmt.Errorf("failed to update execution status: %w", err)
 	}
 
@@ -219,10 +223,10 @@ func (e *Engine) loadExecutionState(ctx context.Context, tx *sql.Tx, executionID
 	var contextJSON []byte
 
 	err := tx.QueryRowContext(ctx, `
-		SELECT execution_id, current_node_id, context, updated_at
-		FROM main.execution_state
+		SELECT s.execution_id, s.current_node_id, s.context, s.updated_at, e.cnt_executed_steps
+		FROM main.execution_state s join main.executions e on s.execution_id = e.id
 		WHERE execution_id = $1
-	`, executionID).Scan(&state.ExecutionID, &state.CurrentNodeID, &contextJSON, &state.UpdatedAt)
+	`, executionID).Scan(&state.ExecutionID, &state.CurrentNodeID, &contextJSON, &state.UpdatedAt, &state.CntExecutedSteps)
 
 	if err == sql.ErrNoRows {
 		return nil, nil // Первый запуск
@@ -401,6 +405,7 @@ func (e *Engine) updateExecutionStatus(
 	msg *ExecutionMessage,
 	result *nodes.NodeResult,
 	nextNodeID *string,
+	cntExecutedSteps *int64,
 ) error {
 	// Определяем новый статус
 	var newStatus int16
@@ -430,9 +435,9 @@ func (e *Engine) updateExecutionStatus(
 
 	_, err := tx.ExecContext(ctx, `
 		UPDATE main.executions
-		SET id_status = $1, current_step_id = $2, finished_at = $3, error = $4
+		SET id_status = $1, current_step_id = $2, finished_at = $3, error = $4, cnt_executed_steps = $6
 		WHERE id = $5
-	`, newStatus, msg.CurrentNodeID, finishedAt, errorMsg, msg.ExecutionID)
+	`, newStatus, msg.CurrentNodeID, finishedAt, errorMsg, msg.ExecutionID, cntExecutedSteps)
 
 	return err
 }
