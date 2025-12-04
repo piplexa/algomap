@@ -4,6 +4,17 @@ import { useSchemasStore } from '../store/schemasStore';
 import { useAuthStore } from '../store/authStore';
 import '../styles/Dashboard.css';
 
+// Статусы схемы из справочника dict_schema_status
+const SCHEMA_STATUSES = {
+  1: { name: 'draft', label: 'Черновик', description: 'схема в разработке' },
+  2: { name: 'active', label: 'Активна', description: 'схема работает' },
+  3: { name: 'archived', label: 'Архив', description: 'схема устарела' },
+};
+
+const getStatusLabel = (statusId) => {
+  return SCHEMA_STATUSES[statusId]?.label || `Статус ${statusId}`;
+};
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { logout } = useAuthStore();
@@ -63,7 +74,7 @@ export default function DashboardPage() {
               <div className="schema-card-header">
                 <h3>{schema.name}</h3>
                 <span className={`status-badge status-${schema.status}`}>
-                  {schema.status}
+                  {getStatusLabel(schema.status)}
                 </span>
               </div>
 
