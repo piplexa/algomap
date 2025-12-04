@@ -26,7 +26,7 @@ func NewSchemaRepository(db *DB, logger *zap.Logger) *SchemaRepository {
 func (r *SchemaRepository) Create(ctx context.Context, req *domain.CreateSchemaRequest, createdBy int64) (*domain.Schema, error) {
 	query := `
 		INSERT INTO main.schemas (name, description, definition, id_status, created_by)
-		VALUES ($1, $2, $3, 1, $4)
+		VALUES ($1, $2, $3, 2, $4)
 		RETURNING id, name, description, definition, id_status, created_by, created_at, updated_at
 	`
 
