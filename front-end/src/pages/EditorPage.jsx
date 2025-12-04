@@ -46,6 +46,7 @@ export default function EditorPage() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [schemaName, setSchemaName] = useState('');
+  const [schemaDescription, setSchemaDescription] = useState('');
   const [schemaStatus, setSchemaStatus] = useState(2); // По умолчанию active
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -69,6 +70,7 @@ export default function EditorPage() {
   useEffect(() => {
     if (currentSchema) {
       setSchemaName(currentSchema.name);
+      setSchemaDescription(currentSchema.description || '');
       setSchemaStatus(currentSchema.status || 2); // По умолчанию active, если статус не указан
 
       if (currentSchema.definition?.nodes) {
@@ -198,7 +200,7 @@ export default function EditorPage() {
 
     const result = await updateSchema(id, {
       name: schemaName,
-      description: currentSchema.description,
+      description: schemaDescription,
       status: schemaStatus,
       definition: {
         nodes: cleanNodes,
@@ -245,13 +247,22 @@ export default function EditorPage() {
         <button onClick={() => navigate('/')} className="btn-back">
           ← Назад
         </button>
-        <input
-          type="text"
-          value={schemaName}
-          onChange={(e) => setSchemaName(e.target.value)}
-          className="schema-name-input"
-          placeholder="Название схемы"
-        />
+        <div className="schema-info">
+          <input
+            type="text"
+            value={schemaName}
+            onChange={(e) => setSchemaName(e.target.value)}
+            className="schema-name-input"
+            placeholder="Название схемы"
+          />
+          <textarea
+            value={schemaDescription}
+            onChange={(e) => setSchemaDescription(e.target.value)}
+            className="schema-description-input"
+            placeholder="Описание схемы (необязательно)"
+            rows={1}
+          />
+        </div>
         <select
           value={schemaStatus}
           onChange={(e) => setSchemaStatus(parseInt(e.target.value, 10))}

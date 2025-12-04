@@ -29,13 +29,38 @@
   background: var(--gray-200);
 }
 
-.schema-name-input {
+.schema-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schema-name-input {
+  width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--gray-300);
   border-radius: var(--border-radius);
   font-size: 16px;
   font-weight: 500;
+}
+
+.schema-description-input {
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  transition: all 0.2s;
+  min-height: 32px;
+}
+
+.schema-description-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .schema-status-select {
