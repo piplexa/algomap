@@ -46,9 +46,17 @@ export default function EditorPage() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [schemaName, setSchemaName] = useState('');
+  const [schemaStatus, setSchemaStatus] = useState(2); // По умолчанию active
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [showDebugModal, setShowDebugModal] = useState(false);
+
+  // Статусы схемы из справочника dict_schema_status
+  const schemaStatuses = [
+    { id: 1, name: 'draft', label: 'Черновик', description: 'схема в разработке' },
+    { id: 2, name: 'active', label: 'Активна', description: 'схема работает' },
+    { id: 3, name: 'archived', label: 'Архив', description: 'схема устарела' },
+  ];
 
   // Загрузка схемы
   useEffect(() => {
@@ -61,7 +69,8 @@ export default function EditorPage() {
   useEffect(() => {
     if (currentSchema) {
       setSchemaName(currentSchema.name);
-      
+      setSchemaStatus(currentSchema.status || 2); // По умолчанию active, если статус не указан
+
       if (currentSchema.definition?.nodes) {
         const loadedNodes = currentSchema.definition.nodes.map((node) => ({
           ...node,
@@ -190,6 +199,7 @@ export default function EditorPage() {
     const result = await updateSchema(id, {
       name: schemaName,
       description: currentSchema.description,
+      status: schemaStatus,
       definition: {
         nodes: cleanNodes,
         edges,
@@ -242,6 +252,18 @@ export default function EditorPage() {
           className="schema-name-input"
           placeholder="Название схемы"
         />
+        <select
+          value={schemaStatus}
+          onChange={(e) => setSchemaStatus(parseInt(e.target.value, 10))}
+          className="schema-status-select"
+          title="Статус схемы"
+        >
+          {schemaStatuses.map((status) => (
+            <option key={status.id} value={status.id}>
+              {status.label}
+            </option>
+          ))}
+        </select>
         <div className="editor-actions">
           <button onClick={handleSave} className="btn-primary" disabled={isSaving}>
             {isSaving ? '💾 Сохранение...' : '💾 Сохранить'}
