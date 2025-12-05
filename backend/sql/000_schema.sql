@@ -232,7 +232,9 @@ CREATE TABLE main.execution_steps (
     
     -- Временные метки
     started_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    finished_at TIMESTAMP
+    finished_at TIMESTAMP,
+
+    context jsonb DEFAULT '{}'::jsonb NOT NULL
 );
 
 COMMENT ON TABLE main.execution_steps IS 'Детальная история выполнения каждого шага (ноды)';
@@ -243,6 +245,7 @@ COMMENT ON COLUMN main.execution_steps.next_node_id IS 'ID следующей н
 COMMENT ON COLUMN main.execution_steps.input IS 'Входные параметры для ноды';
 COMMENT ON COLUMN main.execution_steps.output IS 'Результат выполнения ноды';
 COMMENT ON COLUMN main.execution_steps.id_status IS '1=success, 2=failed, 3=skipped';
+COMMENT ON COLUMN main.execution_steps.context IS 'Контекст на текущий шаг алгоритма';
 
 -- Индексы для execution_steps
 CREATE INDEX idx_execution_steps_execution_id ON main.execution_steps(execution_id);

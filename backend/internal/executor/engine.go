@@ -160,12 +160,7 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *
 		nextNodeID = e.findNextNode(schema, msg.CurrentNodeID, exitHandle)
 	}
 
-	// 9. Сохраняем шаг в execution_steps (теперь с prev_node_id и next_node_id)
-	if err := e.saveExecutionStep(execCtx, tx, msg.ExecutionID, node, result, prevNodeID, nextNodeID, startedAt, finishedAt); err != nil {
-		return nil, &needContinue, fmt.Errorf("failed to save execution step: %w", err)
-	}
-
-	// 10. Сохраняем обновлённое состояние
+	// 9. Сохраняем обновлённое состояние
 	state.CurrentNodeID = msg.CurrentNodeID
 	if nextNodeID != nil {
 		state.CurrentNodeID = *nextNodeID
@@ -174,6 +169,11 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *
 
 	if err := e.saveExecutionState(execCtx, tx, state); err != nil {
 		return nil, &needContinue, fmt.Errorf("failed to save execution state: %w", err)
+	}
+
+	// 10. Сохраняем шаг в execution_steps (теперь с prev_node_id и next_node_id)
+	if err := e.saveExecutionStep(execCtx, tx, msg.ExecutionID, node, result, prevNodeID, nextNodeID, startedAt, finishedAt, state); err != nil {
+		return nil, &needContinue, fmt.Errorf("failed to save execution step: %w", err)
 	}
 
 	// 11. Обновляем статус execution
@@ -281,10 +281,16 @@ func (e *Engine) saveExecutionStep(
 	prevNodeID *string,
 	nextNodeID *string,
 	startedAt, finishedAt time.Time,
+	state *ExecutionState,
 ) error {
 	outputJSON, err := json.Marshal(result.Output)
 	if err != nil {
 		return fmt.Errorf("failed to marshal output: %w", err)
+	}
+
+	contextJSON, err := json.Marshal(state.Context)
+	if err != nil {
+		return fmt.Errorf("failed to marshal context: %w", err)
 	}
 
 	status := int16(1) // success
@@ -297,11 +303,12 @@ func (e *Engine) saveExecutionStep(
 			execution_id, node_id, node_type,
 			prev_node_id, next_node_id,
 			output, id_status, error,
-			started_at, finished_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			started_at, finished_at,
+			context
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`, executionID, node.ID, node.Data.Type,
 		prevNodeID, nextNodeID,
-		outputJSON, status, result.Error, startedAt, finishedAt)
+		outputJSON, status, result.Error, startedAt, finishedAt, contextJSON)
 
 	return err
 }
