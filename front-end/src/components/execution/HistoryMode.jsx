@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import ExecutionItem from './ExecutionItem';
 import ExecutionDetails from './ExecutionDetails';
 import ResizablePanels from './ResizablePanels';
+import { executionsAPI } from '../../api/client';
 
 export default function HistoryMode({ schemaId, onNodeHighlight }) {
   const [executions, setExecutions] = useState([]);
@@ -23,32 +24,37 @@ export default function HistoryMode({ schemaId, onNodeHighlight }) {
     setLoading(true);
     try {
       // TODO: Заменить на реальный API вызов
-      // const response = await fetch(`/api/executions?schema_id=${schemaId}&limit=100&offset=${offset}`);
+
+      const response = await executionsAPI.getList(schemaId, 100, offset);
+      setExecutions(response.data);
+
+      // const response = await fetch(`/api/executions/list/${schemaId}?limit=100&offset=${offset}`);
       // const data = await response.json();
+      // setExecutions( data );
 
       // Пока используем заглушку
-      const mockData = [
-        {
-          id: 'exec-1',
-          schema_id: schemaId,
-          status: 'completed',
-          started_at: '2025-12-05T14:23:45Z',
-          finished_at: '2025-12-05T14:23:50Z',
-          steps_count: 5,
-          duration: 2300,
-        },
-        {
-          id: 'exec-2',
-          schema_id: schemaId,
-          status: 'error',
-          started_at: '2025-12-04T12:10:30Z',
-          finished_at: '2025-12-04T12:10:33Z',
-          steps_count: 3,
-          duration: 1200,
-        },
-      ];
+      // const mockData = [
+      //   {
+      //     id: 'exec-1',
+      //     schema_id: schemaId,
+      //     status: 'completed',
+      //     started_at: '2025-12-05T14:23:45Z',
+      //     finished_at: '2025-12-05T14:23:50Z',
+      //     steps_count: 5,
+      //     duration: 2300,
+      //   },
+      //   {
+      //     id: 'exec-2',
+      //     schema_id: schemaId,
+      //     status: 'error',
+      //     started_at: '2025-12-04T12:10:30Z',
+      //     finished_at: '2025-12-04T12:10:33Z',
+      //     steps_count: 3,
+      //     duration: 1200,
+      //   },
+      // ];
+      // setExecutions(mockData);
 
-      setExecutions(mockData);
       setHasMore(false);
     } catch (error) {
       console.error('Ошибка загрузки запусков:', error);

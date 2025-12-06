@@ -21,12 +21,12 @@ export default function ExecutionItem({ execution, isSelected, onClick }) {
       className={`execution-item ${isSelected ? 'selected' : ''}`}
       onClick={onClick}
     >
-      <div className="execution-time">{formatDateTime(execution.started_at)}</div>
+      <div className="execution-time">{formatDateTime(execution.created_at)}</div>
       <div className={`execution-status ${execution.status}`}>
         {execution.status === 'completed' ? '✓ Успех' : '✗ Ошибка'}
       </div>
       <div className="execution-duration">
-        {execution.steps_count} шагов | {formatDuration(execution.duration)}
+        {execution.cnt_executed_steps } шагов | {formatDuration(execution.duration)}
       </div>
     </div>
   );
