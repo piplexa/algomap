@@ -4,6 +4,18 @@ import (
 	"time"
 )
 
+// Execution_view представляет представление выполнения схемы с агрегированными данными
+// для просмотра списка выполнений
+type Execution_view struct {
+	ID			   	string  	`json:"id" db:"id"`
+	SchemaID       	int64   	`json:"schema_id" db:"schema_id"`
+	CreatedAt      	*time.Time	`json:"created_at" db:"created_at"`
+	FinishedAt     	*time.Time 	`json:"finished_at" db:"finished_at"`
+	CntExecutedSteps int64    	`json:"cnt_executed_steps" db:"cnt_executed_steps"`
+	Duration       	*float64   	`json:"duration" db:"duration"`
+	Status			string		`json:"status" db:"status"`
+}
+
 // Execution представляет запуск схемы
 type Execution struct {
 	ID              string                 `json:"id" db:"id"`

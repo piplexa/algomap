@@ -338,6 +338,54 @@ func (r *ExecutionRepository) CreateStep(ctx context.Context, step *domain.Execu
 	return nil
 }
 
+// List возвращает список выполнений (с фильтрацией по schema_id, id_user, limit, offset)
+func (r *ExecutionRepository) List(ctx context.Context, id_schema int64, id_user int64, limit, offset int) ([]*domain.Execution_view, error) {
+	query := `
+		select 
+		e.id, e.schema_id, e.created_at, e.finished_at, e.cnt_executed_steps,
+		extract( epoch from e.finished_at - e.created_at) as duration, -- TODO: перепроверить
+		s.name as status
+		from main.executions e join main.dict_execution_status s on e.id_status = s.id
+		where e.schema_id = $1 and e.created_by = $2
+		order by e.finished_at 
+		LIMIT $3 OFFSET $4
+	`
+
+	rows, err := r.db.Pool.Query(ctx, query, id_schema, id_user, limit, offset)
+	if err != nil {
+		r.logger.Error("Failed to list executions", zap.Error(err))
+		return nil, fmt.Errorf("failed to list executions: %w", err)
+	}
+	defer rows.Close()
+
+	var executions []*domain.Execution_view
+	for rows.Next() {
+		var execution domain.Execution_view
+		err := rows.Scan(
+			&execution.ID,
+			&execution.SchemaID,
+			&execution.CreatedAt,
+			&execution.FinishedAt,
+			&execution.CntExecutedSteps,
+			&execution.Duration,
+			&execution.Status,
+		)
+
+		if err != nil {
+			r.logger.Error("Failed to scan execution", zap.Error(err))
+			return nil, fmt.Errorf("failed to scan execution: %w", err)
+		}
+		executions = append(executions, &execution)
+	}
+
+	if err := rows.Err(); err != nil {
+		r.logger.Error("Error iterating executions", zap.Error(err))
+		return nil, fmt.Errorf("error iterating executions: %w", err)
+	}
+
+	return executions, nil
+
+}
 
 // ExecutionRepository - репозиторий для работы с выполнениями схем
 // TODO: Реализовать методы:

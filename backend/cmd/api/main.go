@@ -159,6 +159,7 @@ func main() {
 			r.Get("/executions/{id}", executionHandler.GetByID)
 			r.Get("/executions/{id}/steps", executionHandler.GetSteps)
 			r.Get("/executions/{id}/state", executionHandler.GetState)
+			r.Get("/executions/list/{id}", executionHandler.GetExecutionsBySchemaID)
 
 			// TODO: Webhook endpoints
 		})

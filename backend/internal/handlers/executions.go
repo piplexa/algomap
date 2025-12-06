@@ -7,6 +7,7 @@ package handlers
 // GET    /api/executions/:id/steps      	- история шагов
 // GET    /api/executions/:id            	- статус выполнения
 // POST   /api/executions/:id-execution/:id-node/continue  - начать выполнение с указанного узла схемы
+// GET	  /api/executions/list/:id-schema	- список выполнений с фильтрацией по схеме
 
 // TODO: Реализовать endpoints:
 // POST   /api/executions/:id/pause      	- пауза
@@ -19,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/piplexa/algomap/internal/domain"
@@ -56,6 +58,47 @@ func NewExecutionHandler(
 		rmqPublisher: rmqPublisher,
 		queueName:    queueName,
 	}
+}
+
+// GetExecutionsBySchemaID возвращает список выполнений по ID схемы
+// GET /api/executions/list/:id
+func (h *ExecutionHandler) GetExecutionsBySchemaID(w http.ResponseWriter, r *http.Request) {
+	schemaIDStr := chi.URLParam(r, "id") // id схемы из URL
+	schemaID, err := strconv.ParseInt(schemaIDStr, 10, 64)
+	if err != nil {
+		h.respondError(w, http.StatusBadRequest, "Invalid schema ID")
+		return
+	}
+
+	// Получаем user_id из context (установлен в auth middleware)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
+	if !ok {
+		h.respondError(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	limit := 50 // default
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	offset := 0 // default
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	// Получаем список выполнений по schemaID и id_user
+	executions, err := h.execRepo.List(r.Context(), schemaID, userID, limit, offset)
+	if err != nil {
+		h.respondError(w, http.StatusInternalServerError, "Failed to list schemas")
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, executions)
 }
 
 // Create создаёт новое выполнение схемы и отправляет задачу в RabbitMQ
