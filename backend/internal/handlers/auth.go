@@ -34,7 +34,16 @@ func NewAuthHandler(
 }
 
 // Login аутентифицирует пользователя и создаёт сессию
-// POST /api/auth/login
+// @Summary      Вход в систему
+// @Description  Аутентификация пользователя по email и паролю
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        credentials  body      LoginRequest  true  "Email и пароль"
+// @Success      200          {object}  LoginResponse
+// @Failure      400          {object}  ErrorResponse
+// @Failure      401          {object}  ErrorResponse
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req domain.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

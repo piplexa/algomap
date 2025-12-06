@@ -18,8 +18,29 @@ import (
 	"github.com/piplexa/algomap/pkg/logger"
 	"github.com/piplexa/algomap/pkg/rabbitmq"
 	"go.uber.org/zap"
+
+	_ "github.com/piplexa/algomap/docs" // swagger docs
+    httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// @title           AlgoMap API
+// @version         1.0
+// @description     Visual workflow automation platform API
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    https://github.com/piplexa/algomap
+// @contact.email  piplexa@list.ru
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost:8080
+// @BasePath  /api
+
+// @securityDefinitions.apikey SessionAuth
+// @in cookie
+// @name session_id
 func main() {
 	// 1. Загружаем конфигурацию
 	cfg, err := config.Load()
@@ -96,6 +117,9 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
+
+	// Swagger UI
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	// API routes
 	r.Route("/api", func(r chi.Router) {
