@@ -5,8 +5,8 @@ export default function CustomNode({ data, isConnectable }) {
   const definition = NODE_DEFINITIONS[data.type];
 
   return (
-    <div 
-      className={`custom-node ${data.selected ? 'selected' : ''}`}
+    <div
+      className={`custom-node ${data.selected ? 'selected' : ''} ${data.highlighted ? 'highlighted' : ''}`}
       style={{ borderColor: definition?.color }}
     >
       <Handle

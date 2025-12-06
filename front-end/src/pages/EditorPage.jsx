@@ -14,7 +14,7 @@ import CustomNode from '../components/CustomNode';
 import ConditionNode from '../components/ConditionNode';
 import NodesPalette from '../components/NodesPalette';
 import NodeConfigPanel from '../components/NodeConfigPanel';
-import DebugModal from '../components/DebugModal';
+import ExecutionPanel from '../components/ExecutionPanel';
 import { useSchemasStore } from '../store/schemasStore';
 import { NODE_DEFINITIONS, NODE_TYPES } from '../utils/nodeTypes';
 import { executionsAPI } from '../api/client';
@@ -50,7 +50,8 @@ export default function EditorPage() {
   const [schemaStatus, setSchemaStatus] = useState(2); // По умолчанию active
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
-  const [showDebugModal, setShowDebugModal] = useState(false);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [highlightedNodeId, setHighlightedNodeId] = useState(null);
 
   // Статусы схемы из справочника dict_schema_status
   const schemaStatuses = [
@@ -81,6 +82,7 @@ export default function EditorPage() {
           data: {
             ...node.data,
             selected: false,
+            highlighted: false,
           },
         }));
         setNodes(loadedNodes);
@@ -98,6 +100,31 @@ export default function EditorPage() {
       }
     }
   }, [currentSchema, setNodes, setEdges]);
+
+  // Подсветка ноды при отладке/просмотре истории
+  const handleNodeHighlight = useCallback(
+    (nodeId) => {
+      setHighlightedNodeId(nodeId);
+      setNodes((nds) =>
+        nds.map((n) => ({
+          ...n,
+          data: { ...n.data, highlighted: n.id === nodeId },
+        }))
+      );
+      setEdges((eds) =>
+        eds.map((e) => ({
+          ...e,
+          animated: e.target === nodeId,
+          style: {
+            ...e.style,
+            stroke: e.target === nodeId ? '#f59e0b' : undefined,
+            strokeWidth: e.target === nodeId ? 3 : undefined,
+          },
+        }))
+      );
+    },
+    [setNodes, setEdges]
+  );
 
   // Drag & Drop ноды с палитры
   const onDragOver = useCallback((event) => {
@@ -279,12 +306,6 @@ export default function EditorPage() {
           <button onClick={handleSave} className="btn-primary" disabled={isSaving}>
             {isSaving ? '💾 Сохранение...' : '💾 Сохранить'}
           </button>
-          <button 
-            onClick={() => setShowDebugModal(true)}
-            className="btn-warning"
-          >
-            🐛 Отладка
-          </button>
           <button
             onClick={handleRunSchema}
             className="btn-success"
@@ -336,14 +357,14 @@ export default function EditorPage() {
             );
           }}
         />
-      </div>
 
-      {showDebugModal && currentSchema && (
-        <DebugModal 
-          schema={currentSchema}
-          onClose={() => setShowDebugModal(false)}
+        <ExecutionPanel
+          schemaId={id}
+          isOpen={isPanelOpen}
+          onToggle={() => setIsPanelOpen(!isPanelOpen)}
+          onNodeHighlight={handleNodeHighlight}
         />
-      )}
+      </div>
     </div>
   );
 }

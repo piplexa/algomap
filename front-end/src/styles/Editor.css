@@ -216,6 +216,21 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.custom-node.highlighted {
+  border: 3px solid #f59e0b;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
 .node-header {
   padding: 8px 12px;
   color: white;
