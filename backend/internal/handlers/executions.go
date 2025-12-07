@@ -27,6 +27,8 @@ import (
 	"github.com/piplexa/algomap/internal/middleware"
 	"github.com/piplexa/algomap/internal/repository"
 	"go.uber.org/zap"
+
+	"reflect"
 )
 
 // RabbitMQPublisher интерфейс для публикации сообщений
@@ -289,6 +291,20 @@ func (h *ExecutionHandler) Continue(w http.ResponseWriter, r *http.Request) {
 func (h *ExecutionHandler) respondJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
+
+	//h.logger.Debug("Responding with JSON: ", zap.Any("data", data))
+	if isNilValue(data) {
+		h.logger.Warn("respondJSON called with nil data - this should be fixed in repository!")
+		// TODO: Подумать: пусть репозитории возвращают пустой слайс или мапу вместо nil или делать это тут?
+    
+		value := reflect.ValueOf(data)
+		if value.Kind() == reflect.Slice {
+			data = []interface{}{}
+		} else {
+			data = map[string]interface{}{}
+		}
+    }
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		h.logger.Error("Failed to encode JSON response", zap.Error(err))
 	}
@@ -333,4 +349,21 @@ type ErrStartNodeNotFound struct{}
 
 func (e *ErrStartNodeNotFound) Error() string {
 	return "start node not found in schema definition"
+}
+
+//
+// isNilValue проверяет, является ли значение nil (включая typed nil, nil slice, nil map)
+// TODO: вынести в утилиты
+func isNilValue(data interface{}) bool {
+    if data == nil {
+        return true
+    }
+    
+    value := reflect.ValueOf(data)
+    switch value.Kind() {
+    case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func, reflect.Interface:
+        return value.IsNil()
+    default:
+        return false
+    }
 }
