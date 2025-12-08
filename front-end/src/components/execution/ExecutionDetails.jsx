@@ -1,8 +1,34 @@
+import { useEffect } from 'react';
 import StepsTab from './StepsTab';
 import LogsTab from './LogsTab';
 import ContextTab from './ContextTab';
 
 export default function ExecutionDetails({ steps, selectedStep, onSelectStep }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+
+        const currentIndex = steps.findIndex(step => step.id === selectedStep);
+
+        if (event.key === 'ArrowDown') {
+          // Переход на следующий шаг
+          if (currentIndex < steps.length - 1) {
+            onSelectStep(steps[currentIndex + 1].id);
+          }
+        } else if (event.key === 'ArrowUp') {
+          // Переход на предыдущий шаг
+          if (currentIndex > 0) {
+            onSelectStep(steps[currentIndex - 1].id);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [steps, selectedStep, onSelectStep]);
+
   return (
     <div className="execution-details-three-columns">
       {/* Колонка 1: Шаги (10%) */}

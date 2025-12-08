@@ -123,19 +123,20 @@ export const NODE_DEFINITIONS = {
       result_variable: '',
     },
   },
-  [NODE_TYPES.RABBITMQ_PUBLISH]: {
-    type: NODE_TYPES.RABBITMQ_PUBLISH,
-    label: 'RabbitMQ',
-    category: NODE_CATEGORIES.EXTERNAL,
-    icon: '🐰',
-    color: '#f97316',
-    outputs: 2, // success, error
-    config: {
-      queue: '',
-      exchange: '',
-      message: {},
-    },
-  },
+  //// TODO: Работу с брокером очередей перенесена в следующие версии
+  // [NODE_TYPES.RABBITMQ_PUBLISH]: {
+  //   type: NODE_TYPES.RABBITMQ_PUBLISH,
+  //   label: 'RabbitMQ',
+  //   category: NODE_CATEGORIES.EXTERNAL,
+  //   icon: '🐰',
+  //   color: '#f97316',
+  //   outputs: 2, // success, error
+  //   config: {
+  //     queue: '',
+  //     exchange: '',
+  //     message: {},
+  //   },
+  // },
 };
 
 // Группировка по категориям для панели инструментов
