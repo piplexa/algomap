@@ -78,11 +78,14 @@ export const executionsAPI = {
   getState: (id) =>
     api.get(`/executions/${id}/state`),
 
-  // Новый метод для получения списка выполнений схемы
+  // Метод для получения списка выполнений схемы
   getList: (schemaId, limit = 100, offset = 0) =>
     api.get(`/executions/list/${schemaId}`, {
       params: { limit, offset }
   }),
-};
+  // История шагов выполнения
+  getListSteps: (executionId) =>
+    api.get(`/executions/${executionId}/steps`)
+  };
 
 export default api;

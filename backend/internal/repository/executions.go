@@ -186,10 +186,10 @@ func (r *ExecutionRepository) GetSteps(ctx context.Context, id string) ([]*domai
 	query := `
 		SELECT 
 			id, execution_id, node_id, node_type, prev_node_id, next_node_id,
-			input, output, id_status, error, started_at, finished_at
+			input, output, id_status, error, started_at, finished_at, context
 		FROM main.execution_steps
 		WHERE execution_id = $1
-		ORDER BY started_at ASC
+		ORDER BY id ASC
 	`
 
 	rows, err := r.db.Pool.Query(ctx, query, executionID)
@@ -218,6 +218,7 @@ func (r *ExecutionRepository) GetSteps(ctx context.Context, id string) ([]*domai
 			&step.Error,
 			&step.StartedAt,
 			&step.FinishedAt,
+			&step.Context,
 		)
 		if err != nil {
 			r.logger.Error("Failed to scan execution step",

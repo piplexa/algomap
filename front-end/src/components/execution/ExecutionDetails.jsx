@@ -26,12 +26,16 @@ export default function ExecutionDetails({ steps, selectedStep, onSelectStep }) 
       </div>
 
       {/* Колонка 3: Логи (45%) */}
+      {
+      /*
       <div className="logs-column">
         <h4>Логи</h4>
         <div className="logs-column-content">
           <LogsTab steps={steps} selectedStep={selectedStep} />
         </div>
       </div>
+      */
+      }
     </div>
   );
 }

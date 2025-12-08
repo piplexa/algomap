@@ -56,6 +56,7 @@ type ExecutionStep struct {
 	Error        *string                `json:"error,omitempty" db:"error"`
 	StartedAt    time.Time              `json:"started_at" db:"started_at"`
 	FinishedAt   *time.Time             `json:"finished_at,omitempty" db:"finished_at"`
+	Context		 map[string]interface{} `json:"context,omitempty" db:"context"`
 }
 
 // Константы для статусов выполнения

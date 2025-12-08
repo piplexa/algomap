@@ -23,38 +23,9 @@ export default function HistoryMode({ schemaId, onNodeHighlight }) {
   const loadExecutions = async () => {
     setLoading(true);
     try {
-      // TODO: Заменить на реальный API вызов
-
+      // Получаем список запусков из API
       const response = await executionsAPI.getList(schemaId, 100, offset);
       setExecutions(response.data);
-
-      // const response = await fetch(`/api/executions/list/${schemaId}?limit=100&offset=${offset}`);
-      // const data = await response.json();
-      // setExecutions( data );
-
-      // Пока используем заглушку
-      // const mockData = [
-      //   {
-      //     id: 'exec-1',
-      //     schema_id: schemaId,
-      //     status: 'completed',
-      //     started_at: '2025-12-05T14:23:45Z',
-      //     finished_at: '2025-12-05T14:23:50Z',
-      //     steps_count: 5,
-      //     duration: 2300,
-      //   },
-      //   {
-      //     id: 'exec-2',
-      //     schema_id: schemaId,
-      //     status: 'error',
-      //     started_at: '2025-12-04T12:10:30Z',
-      //     finished_at: '2025-12-04T12:10:33Z',
-      //     steps_count: 3,
-      //     duration: 1200,
-      //   },
-      // ];
-      // setExecutions(mockData);
-
       setHasMore(false);
     } catch (error) {
       console.error('Ошибка загрузки запусков:', error);
@@ -70,68 +41,13 @@ export default function HistoryMode({ schemaId, onNodeHighlight }) {
     setLoading(true);
 
     try {
-      // TODO: Заменить на реальный API вызов
-      // const response = await fetch(`/api/executions/${executionId}`);
-      // const data = await response.json();
-
-      // Пока используем заглушку
-      const mockDetails = {
-        id: executionId,
-        schema_id: schemaId,
-        status: 'completed',
-        started_at: '2025-12-05T14:23:45Z',
-        finished_at: '2025-12-05T14:23:50Z',
-        steps: [
-          {
-            id: 'step-1',
-            node_id: 'start_1',
-            node_type: 'start',
-            status: 'success',
-            started_at: '2025-12-05T14:23:45Z',
-            finished_at: '2025-12-05T14:23:45Z',
-            context_snapshot: {},
-          },
-          {
-            id: 'step-2',
-            node_id: 'variable_set_2',
-            node_type: 'variable_set',
-            status: 'success',
-            started_at: '2025-12-05T14:23:46Z',
-            finished_at: '2025-12-05T14:23:46Z',
-            context_snapshot: { n: 5 },
-          },
-          {
-            id: 'step-3',
-            node_id: 'math_3',
-            node_type: 'math',
-            status: 'success',
-            started_at: '2025-12-05T14:23:47Z',
-            finished_at: '2025-12-05T14:23:47Z',
-            context_snapshot: { n: 5, p: 0 },
-          },
-          {
-            id: 'step-4',
-            node_id: 'log_4',
-            node_type: 'log',
-            status: 'success',
-            started_at: '2025-12-05T14:23:48Z',
-            finished_at: '2025-12-05T14:23:48Z',
-            context_snapshot: { n: 5, p: 0 },
-            log_message: 'Результат: 0',
-          },
-          {
-            id: 'step-5',
-            node_id: 'end_5',
-            node_type: 'end',
-            status: 'success',
-            started_at: '2025-12-05T14:23:50Z',
-            finished_at: '2025-12-05T14:23:50Z',
-            context_snapshot: { n: 5, p: 0 },
-          },
-        ],
+      const response = await executionsAPI.getListSteps(executionId);
+      // TODO: Ничего не понимаю в долбанном React, если передавать просто переменную response.data - не работает, но если передать объект с индексом steps - работает
+      // Догадываюсь, что дело в этом: export default function ExecutionDetails({ steps, selectedStep, onSelectStep }) { (см. файл ExecutionDetails.jsx) вот совершенно не очевидно.
+      let p = {
+        steps: response.data
       };
-
-      setExecutionDetails(mockDetails);
+      setExecutionDetails( p );
     } catch (error) {
       console.error('Ошибка загрузки деталей запуска:', error);
     } finally {

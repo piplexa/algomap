@@ -4,7 +4,7 @@ export default function ContextTab({ steps, selectedStep }) {
     ? steps.find((s) => s.id === selectedStep)
     : steps[steps.length - 1];
 
-  const context = step?.context_snapshot || {};
+  const context = step?.context || {};
 
   return (
     <div className="context-viewer">
