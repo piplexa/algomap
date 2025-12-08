@@ -14,6 +14,7 @@ type User struct {
 type CreateUserRequest struct {
 	Email string `json:"email"`
 	Name  string `json:"name"`
+	Password string `json:"password"`
 }
 
 // UpdateUserRequest - запрос на обновление пользователя

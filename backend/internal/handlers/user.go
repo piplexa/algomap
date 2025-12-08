@@ -34,9 +34,14 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Валидация
+	// Валидация Email
 	if req.Email == "" {
 		h.respondError(w, http.StatusBadRequest, "Email is required")
+		return
+	}
+	// Валидация password
+	if req.Password == "" {
+		h.respondError(w, http.StatusBadRequest, "Password is required")
 		return
 	}
 

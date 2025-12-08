@@ -13,7 +13,7 @@ type Session struct {
 // LoginRequest - запрос на логин
 type LoginRequest struct {
 	Email    string `json:"email"`
-	Password string `json:"password,omitempty"` // TODO: добавить когда будут пароли
+	Password string `json:"password"`
 }
 
 // LoginResponse - ответ после успешного логина

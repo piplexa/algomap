@@ -25,8 +25,8 @@ func NewUserRepository(db *DB, logger *zap.Logger) *UserRepository {
 // Create создаёт нового пользователя
 func (r *UserRepository) Create(ctx context.Context, req *domain.CreateUserRequest) (*domain.User, error) {
 	query := `
-		INSERT INTO main.users (email, name)
-		VALUES ($1, $2)
+		INSERT INTO main.users (email, name, hashPassword)
+		VALUES ($1, $2, crypt($3, gen_salt('bf')))
 		RETURNING id, email, name, created_at
 	`
 
@@ -36,6 +36,7 @@ func (r *UserRepository) Create(ctx context.Context, req *domain.CreateUserReque
 		query,
 		req.Email,
 		req.Name,
+		req.Password,
 	).Scan(
 		&user.ID,
 		&user.Email,
@@ -212,4 +213,32 @@ func (r *UserRepository) Delete(ctx context.Context, id int64) error {
 	r.logger.Info("User deleted successfully", zap.Int64("user_id", id))
 
 	return nil
+}
+
+// VerifyPassword проверяет соответствие пароля хешу
+func (r *UserRepository) VerifyPassword(ctx context.Context, email, password string) (*domain.User, error) {
+	query := `
+		SELECT id, email, name, created_at
+		FROM main.users
+		WHERE email = $1
+		  AND hashPassword = crypt($2, hashPassword)
+	`
+
+	var user domain.User
+	err := r.db.Pool.QueryRow(ctx, query, email, password).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Name,
+		&user.CreatedAt,
+	)
+
+	if err != nil {
+		r.logger.Error("Failed to verify password",
+			zap.Error(err),
+			zap.String("email", email),
+		)
+		return nil, fmt.Errorf("invalid credentials: %w", err)
+	}
+
+	return &user, nil
 }

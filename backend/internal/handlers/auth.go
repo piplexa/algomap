@@ -52,25 +52,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Валидация
-	if req.Email == "" {
-		h.respondError(w, http.StatusBadRequest, "Email is required")
+	if req.Email == "" || req.Password == "" {
+		h.respondError(w, http.StatusBadRequest, "Email and password are required")
 		return
 	}
 
-	// Находим пользователя по email
-	user, err := h.userRepo.GetByEmail(r.Context(), req.Email)
+	// Проверяем пароль и получаем пользователя
+	user, err := h.userRepo.VerifyPassword(r.Context(), req.Email, req.Password)
 	if err != nil {
 		h.respondError(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
-
-	// TODO: Проверить хэш пароля
-	// if req.Password != "" {
-	//     if !checkPasswordHash(req.Password, user.PasswordHash) {
-	//         h.respondError(w, http.StatusUnauthorized, "Invalid credentials")
-	//         return
-	//     }
-	// }
 
 	// TODO: OAuth провайдеры (Google, GitHub)
 	// Здесь будет логика для OAuth:

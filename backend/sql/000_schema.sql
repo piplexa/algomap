@@ -6,6 +6,9 @@
 -- Включаем расширение для UUID (используется только в executions)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Расширение для хеширования паролей
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Создаём схему main (если не существует)
 CREATE SCHEMA IF NOT EXISTS main;
 
