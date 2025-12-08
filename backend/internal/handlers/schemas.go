@@ -10,6 +10,8 @@ import (
 	"github.com/piplexa/algomap/internal/middleware"
 	"github.com/piplexa/algomap/internal/repository"
 	"go.uber.org/zap"
+
+	"reflect"
 )
 
 // SchemaHandler обрабатывает запросы для схем
@@ -158,6 +160,19 @@ func (h *SchemaHandler) Delete(w http.ResponseWriter, r *http.Request) {
 func (h *SchemaHandler) respondJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
+
+	if isNilValue(data) {
+		h.logger.Warn("respondJSON called with nil data - this should be fixed in repository!")
+		// TODO: Подумать: пусть репозитории возвращают пустой слайс или мапу вместо nil или делать это тут?
+    
+		value := reflect.ValueOf(data)
+		if value.Kind() == reflect.Slice {
+			data = []interface{}{}
+		} else {
+			data = map[string]interface{}{}
+		}
+    }
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		h.logger.Error("Failed to encode JSON response", zap.Error(err))
 	}
