@@ -348,7 +348,7 @@ func (r *ExecutionRepository) List(ctx context.Context, id_schema int64, id_user
 		s.name as status
 		from main.executions e join main.dict_execution_status s on e.id_status = s.id
 		where e.schema_id = $1 and e.created_by = $2
-		order by e.finished_at 
+		order by e.created_at desc
 		LIMIT $3 OFFSET $4
 	`
 
