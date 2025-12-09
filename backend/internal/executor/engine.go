@@ -61,7 +61,8 @@ func NewEngine(db *sql.DB, logger *zap.Logger, registry *nodes.HandlerRegistry) 
 
 // Execute выполняет одну ноду и возвращает ID следующей ноды (если есть)
 // +вернуть признак needContinue: нужно продолжать выполнение схемы или нет. Например при sleep не нужно.
-// TODO: добавить сохранения количества выполненных шагов в main.executions.cnt_executed_steps
+// +добавить сохранения количества выполненных шагов в main.executions.cnt_executed_steps
+// TODO: Если количество выполнений шагов (main.executions.cnt_executed_steps) больше N - вернуть ошибку
 func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *bool, error) {
 	var needContinue bool = true
 
@@ -88,6 +89,17 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *
 	}
 	if state == nil {
 		state = e.initializeState(msg)
+	}
+	// TODO: Число конечно нужно вынести в настройку пользователя.
+	// TODO: Чтобы у каждого пользователя была возможность ограничивать количество шагов в алгоритме
+	// TODO: Вся эта канитель нужна только для того, чтобы в вечные циклы не уходили и алгоритмы писали лучше
+	if state.CntExecutedSteps >= 100 {
+		needContinue = false // продолжать алгоритм не нужно
+		// Сохранить error
+		if err := e.updateExecutionError(msg.ExecutionID, "превышен лимит выполнения шагов в алгоритме"); err != nil {
+			return nil, &needContinue, fmt.Errorf("failed to save execution error step: %w", err)
+		}
+		return nil, &needContinue, fmt.Errorf("превышен лимит выполнения шагов в алгоритме: %d", state.CntExecutedSteps)
 	}
 
 	// 2. Загружаем схему
@@ -401,6 +413,18 @@ func (e *Engine) saveExecutionState(ctx context.Context, tx *sql.Tx, state *Exec
 			context = EXCLUDED.context,
 			updated_at = EXCLUDED.updated_at
 	`, state.ExecutionID, state.CurrentNodeID, contextJSON, state.UpdatedAt)
+
+	return err
+}
+
+// Сохранить ошибку выполнения в базе данных
+// + Отдельной транзакцией!
+func (e *Engine) updateExecutionError(ExecutionID string, errorMsg string) error {
+	_, err := e.db.Exec(`
+		UPDATE main.executions
+		SET error = $2, id_status = 5
+		WHERE id = $1
+	`, ExecutionID, errorMsg)
 
 	return err
 }

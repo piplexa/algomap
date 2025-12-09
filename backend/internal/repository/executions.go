@@ -154,6 +154,8 @@ func (r *ExecutionRepository) UpdateStatus(ctx context.Context, id string, statu
 		errPtr = &errorMsg
 	}
 
+	r.logger.Debug("!!!! обновить ошибку !!!!", zap.Any("executionID", executionID),  zap.String("errorMsg", *errPtr))
+
 	result, err := r.db.Pool.Exec(ctx, query, executionID, status, errPtr)
 	if err != nil {
 		r.logger.Error("Failed to update execution status",
