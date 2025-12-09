@@ -39,7 +39,8 @@ export default function ExecutionPanel({ schemaId, isOpen, onToggle, onNodeHighl
         >
           История
         </button>
-        <button
+        {/* TODO: Добавить режим отладки */}
+        {/* <button
           className={`mode-btn ${mode === 'debug' ? 'active' : ''}`}
           onClick={() => {
             setMode('debug');
@@ -49,7 +50,7 @@ export default function ExecutionPanel({ schemaId, isOpen, onToggle, onNodeHighl
           }}
         >
           Отладка
-        </button>
+        </button> */}
         <button className="panel-toggle" onClick={onToggle}>
           {isOpen ? '▼' : '▲'}
         </button>
