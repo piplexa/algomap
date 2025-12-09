@@ -85,7 +85,11 @@ export const executionsAPI = {
   }),
   // История шагов выполнения
   getListSteps: (executionId) =>
-    api.get(`/executions/${executionId}/steps`)
+    api.get(`/executions/${executionId}/steps`),
+
+  // Удаление всей истории выполнений по схеме
+  deleteBySchemaId: (schemaId) =>
+    api.delete(`/executions/schema/${schemaId}`)
   };
 
 export default api;

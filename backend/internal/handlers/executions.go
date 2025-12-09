@@ -227,6 +227,45 @@ func (h *ExecutionHandler) GetState(w http.ResponseWriter, r *http.Request) {
 	h.respondJSON(w, http.StatusOK, state)
 }
 
+// DeleteBySchemaID удаляет всю историю выполнений для указанной схемы
+// DELETE /api/executions/schema/:id
+func (h *ExecutionHandler) DeleteBySchemaID(w http.ResponseWriter, r *http.Request) {
+	schemaIDStr := chi.URLParam(r, "id")
+	schemaID, err := strconv.ParseInt(schemaIDStr, 10, 64)
+	if err != nil {
+		h.respondError(w, http.StatusBadRequest, "Invalid schema ID")
+		return
+	}
+
+	// Получаем user_id из context (установлен в auth middleware)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
+	if !ok {
+		h.respondError(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	// Удаляем все выполнения схемы
+	err = h.execRepo.DeleteBySchemaID(r.Context(), schemaID, userID)
+	if err != nil {
+		h.logger.Error("Failed to delete executions by schema ID",
+			zap.Error(err),
+			zap.Int64("schema_id", schemaID),
+			zap.Int64("user_id", userID),
+		)
+		h.respondError(w, http.StatusInternalServerError, "Failed to delete executions")
+		return
+	}
+
+	h.logger.Info("Executions deleted successfully",
+		zap.Int64("schema_id", schemaID),
+		zap.Int64("user_id", userID),
+	)
+
+	h.respondJSON(w, http.StatusOK, map[string]string{
+		"message": "All executions for the schema have been deleted successfully",
+	})
+}
+
 // Continue продолжает выполнение схемы с указанного узла
 // POST /api/executions/:id-execution/:id-node/continue
 func (h *ExecutionHandler) Continue(w http.ResponseWriter, r *http.Request) {

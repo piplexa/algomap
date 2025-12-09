@@ -390,6 +390,86 @@ func (r *ExecutionRepository) List(ctx context.Context, id_schema int64, id_user
 
 }
 
+// DeleteBySchemaID удаляет все выполнения и связанные данные для указанной схемы и пользователя
+func (r *ExecutionRepository) DeleteBySchemaID(ctx context.Context, schemaID int64, userID int64) error {
+	// Удаление выполняется в рамках транзакции для обеспечения целостности данных
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		r.logger.Error("Failed to begin transaction for deleting executions",
+			zap.Error(err),
+			zap.Int64("schema_id", schemaID),
+		)
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Сначала удаляем execution_steps для всех выполнений схемы
+	deleteStepsQuery := `
+		DELETE FROM main.execution_steps
+		WHERE execution_id IN (
+			SELECT id FROM main.executions
+			WHERE schema_id = $1 AND created_by = $2
+		)
+	`
+	_, err = tx.Exec(ctx, deleteStepsQuery, schemaID, userID)
+	if err != nil {
+		r.logger.Error("Failed to delete execution steps",
+			zap.Error(err),
+			zap.Int64("schema_id", schemaID),
+		)
+		return fmt.Errorf("failed to delete execution steps: %w", err)
+	}
+
+	// Удаляем execution_state
+	deleteStateQuery := `
+		DELETE FROM main.execution_state
+		WHERE execution_id IN (
+			SELECT id FROM main.executions
+			WHERE schema_id = $1 AND created_by = $2
+		)
+	`
+	_, err = tx.Exec(ctx, deleteStateQuery, schemaID, userID)
+	if err != nil {
+		r.logger.Error("Failed to delete execution state",
+			zap.Error(err),
+			zap.Int64("schema_id", schemaID),
+		)
+		return fmt.Errorf("failed to delete execution state: %w", err)
+	}
+
+	// Удаляем сами executions
+	deleteExecutionsQuery := `
+		DELETE FROM main.executions
+		WHERE schema_id = $1 AND created_by = $2
+	`
+	result, err := tx.Exec(ctx, deleteExecutionsQuery, schemaID, userID)
+	if err != nil {
+		r.logger.Error("Failed to delete executions",
+			zap.Error(err),
+			zap.Int64("schema_id", schemaID),
+		)
+		return fmt.Errorf("failed to delete executions: %w", err)
+	}
+
+	// Коммитим транзакцию
+	if err := tx.Commit(ctx); err != nil {
+		r.logger.Error("Failed to commit transaction for deleting executions",
+			zap.Error(err),
+			zap.Int64("schema_id", schemaID),
+		)
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	deletedCount := result.RowsAffected()
+	r.logger.Info("Executions deleted successfully",
+		zap.Int64("schema_id", schemaID),
+		zap.Int64("user_id", userID),
+		zap.Int64("deleted_count", deletedCount),
+	)
+
+	return nil
+}
+
 // ExecutionRepository - репозиторий для работы с выполнениями схем
 // TODO: Реализовать методы:
 // - Create() - создать выполнение
