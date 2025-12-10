@@ -43,55 +43,55 @@ services:
   # См. инструкцию ниже в комментариях
   # =====================================================
   
-  # backend-api:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile.api
-  #   env_file:
-  #     - ./backend/.env.api
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   restart: unless-stopped
-  #   networks:
-  #     - algomap-network
+  backend-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.api
+    env_file:
+      - ./backend/.env.api.example
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - algomap-network
 
-  # backend-worker:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile.worker
-  #   env_file:
-  #     - ./backend/.env.worker
-  #   volumes:
-  #     - worker_data:/data
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   restart: unless-stopped
-  #   networks:
-  #     - algomap-network
+  backend-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    env_file:
+      - ./backend/.env.worker.example
+    volumes:
+      - worker_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - algomap-network
 
   # =====================================================
   # Frontend - для разработки запускается ЛОКАЛЬНО
   # Production-сборка закомментирована
   # =====================================================
   
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "3000:80"
-  #   depends_on:
-  #     - backend-api
-  #   networks:
-  #     - algomap-network
+  frontend:
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend-api
+    networks:
+      - algomap-network
 
 volumes:
   postgres_data:
