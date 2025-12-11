@@ -422,3 +422,40 @@
   top: 50%;
   transform: translateY(-50%);
 }
+
+/* Стили для линий соединений (edges) */
+.react-flow__edge-path {
+  stroke-width: 2;
+  stroke: #94a3b8;
+  transition: all 0.2s;
+}
+
+/* При наведении на линию */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #3b82f6;
+  stroke-width: 3;
+}
+
+/* Выбранная линия */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #3b82f6;
+  stroke-width: 3;
+}
+
+/* Стрелка на конце линии */
+.react-flow__arrowhead {
+  fill: #94a3b8;
+}
+
+.react-flow__edge:hover .react-flow__arrowhead {
+  fill: #3b82f6;
+}
+
+.react-flow__edge.selected .react-flow__arrowhead {
+  fill: #3b82f6;
+}
+
+/* Улучшенная видимость для smoothstep линий */
+.react-flow__edge-smoothstep {
+  opacity: 0.9;
+}

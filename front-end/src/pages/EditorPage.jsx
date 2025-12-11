@@ -14,6 +14,7 @@ import CustomNode from '../components/CustomNode';
 import ConditionNode from '../components/ConditionNode';
 import NodesPalette from '../components/NodesPalette';
 import NodeConfigPanel from '../components/NodeConfigPanel';
+import EdgeConfigPanel from '../components/EdgeConfigPanel';
 import ExecutionPanel from '../components/ExecutionPanel';
 import { useSchemasStore } from '../store/schemasStore';
 import { NODE_DEFINITIONS, NODE_TYPES } from '../utils/nodeTypes';
@@ -45,6 +46,7 @@ export default function EditorPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [selectedEdge, setSelectedEdge] = useState(null); // Состояние для выбранной линии
   const [schemaName, setSchemaName] = useState('');
   const [schemaDescription, setSchemaDescription] = useState('');
   const [schemaStatus, setSchemaStatus] = useState(2); // По умолчанию active
@@ -96,7 +98,22 @@ export default function EditorPage() {
       }
 
       if (currentSchema.definition?.edges) {
-        setEdges(currentSchema.definition.edges);
+        // Применяем улучшенные стили к загруженным линиям
+        const enhancedEdges = currentSchema.definition.edges.map((edge) => ({
+          ...edge,
+          // Если тип не указан или это default, меняем на smoothstep
+          type: edge.type && edge.type !== 'default' ? edge.type : 'smoothstep',
+          style: {
+            stroke: '#94a3b8',
+            strokeWidth: 2,
+            ...edge.style, // Сохраняем пользовательские стили, если есть
+          },
+          markerEnd: edge.markerEnd || {
+            type: 'arrowclosed',
+            color: '#94a3b8',
+          },
+        }));
+        setEdges(enhancedEdges);
       }
     }
   }, [currentSchema, setNodes, setEdges]);
@@ -163,8 +180,26 @@ export default function EditorPage() {
   );
 
   // Соединение нод
+  // Настраиваем дефолтные параметры для новых линий
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
+    (params) => {
+      // Добавляем тип smoothstep для автоматического обхода блоков
+      // и кастомные стили для лучшей читаемости
+      const newEdge = {
+        ...params,
+        type: 'smoothstep', // Используем smoothstep вместо default
+        animated: false, // По умолчанию без анимации
+        style: {
+          stroke: '#94a3b8', // Серо-синий цвет линии
+          strokeWidth: 2, // Толщина линии
+        },
+        markerEnd: {
+          type: 'arrowclosed', // Стрелка на конце
+          color: '#94a3b8',
+        },
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
     [setEdges]
   );
 
@@ -178,8 +213,27 @@ export default function EditorPage() {
         }))
       );
       setSelectedNode(node);
+      setSelectedEdge(null); // Сбрасываем выбор линии при выборе ноды
     },
     [setNodes]
+  );
+
+  // Выбор линии соединения
+  const onEdgeClick = useCallback(
+    (event, edge) => {
+      event.stopPropagation();
+      setSelectedEdge(edge);
+      setSelectedNode(null); // Сбрасываем выбор ноды при выборе линии
+
+      // Визуально выделяем выбранную линию
+      setEdges((eds) =>
+        eds.map((e) => ({
+          ...e,
+          selected: e.id === edge.id,
+        }))
+      );
+    },
+    [setEdges]
   );
 
   // Обновление конфига ноды
@@ -203,6 +257,29 @@ export default function EditorPage() {
     [setNodes]
   );
 
+  // Обновление настроек линии (тип, анимация и т.д.)
+  const onEdgeConfigUpdate = useCallback(
+    (edgeId, updates) => {
+      setEdges((eds) =>
+        eds.map((edge) => {
+          if (edge.id === edgeId) {
+            return {
+              ...edge,
+              ...updates,
+            };
+          }
+          return edge;
+        })
+      );
+
+      // Обновляем выбранную линию в состоянии
+      setSelectedEdge((current) =>
+        current?.id === edgeId ? { ...current, ...updates } : current
+      );
+    },
+    [setEdges]
+  );
+
   // Удаление ноды
   const onNodesDelete = useCallback((deleted) => {
     // Если удалили выбранную ноду, сбрасываем выбор
@@ -210,6 +287,14 @@ export default function EditorPage() {
       setSelectedNode(null);
     }
   }, [selectedNode]);
+
+  // Удаление линий
+  const onEdgesDelete = useCallback((deleted) => {
+    // Если удалили выбранную линию, сбрасываем выбор
+    if (deleted.some(edge => edge.id === selectedEdge?.id)) {
+      setSelectedEdge(null);
+    }
+  }, [selectedEdge]);
 
   // Сохранение схемы
   const handleSave = async () => {
@@ -330,7 +415,9 @@ export default function EditorPage() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
+            onEdgeClick={onEdgeClick}
             onNodesDelete={onNodesDelete}
+            onEdgesDelete={onEdgesDelete}
             onInit={setReactFlowInstance}
             onDrop={onDrop}
             onDragOver={onDragOver}
@@ -344,19 +431,36 @@ export default function EditorPage() {
           </ReactFlow>
         </div>
 
-        <NodeConfigPanel
-          node={selectedNode}
-          onUpdate={onNodeConfigUpdate}
-          onClose={() => {
-            setSelectedNode(null);
-            setNodes((nds) =>
-              nds.map((n) => ({
-                ...n,
-                data: { ...n.data, selected: false },
-              }))
-            );
-          }}
-        />
+        {/* Показываем либо панель настройки линий, либо панель настройки нод */}
+        {selectedEdge ? (
+          <EdgeConfigPanel
+            edge={selectedEdge}
+            onUpdate={onEdgeConfigUpdate}
+            onClose={() => {
+              setSelectedEdge(null);
+              setEdges((eds) =>
+                eds.map((e) => ({
+                  ...e,
+                  selected: false,
+                }))
+              );
+            }}
+          />
+        ) : (
+          <NodeConfigPanel
+            node={selectedNode}
+            onUpdate={onNodeConfigUpdate}
+            onClose={() => {
+              setSelectedNode(null);
+              setNodes((nds) =>
+                nds.map((n) => ({
+                  ...n,
+                  data: { ...n.data, selected: false },
+                }))
+              );
+            }}
+          />
+        )}
 
         <ExecutionPanel
           schemaId={id}
