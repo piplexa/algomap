@@ -267,10 +267,11 @@ PostgreSQL схема включает:
 - [x] Базовые типы нод (Start, End, HTTP, Condition, Log)
 - [x] REST API для схем
 - [x] Execution engine с RabbitMQ
-- [x] Sleep/Delay через `at` библиотеку
+- [x] Sleep/Delay через `at` сервер
 - [x] Webhook триггеры (через executions/.../continue )
 
 ### v0.2
+- [ ] Работа с массивами
 - [x] Дополнительные типы нод (Math, Variable)
 - [ ] Pause/Resume выполнения
 - [x] История выполнений
