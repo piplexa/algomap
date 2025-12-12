@@ -1,0 +1,165 @@
+services:
+  # PostgreSQL - база данных
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: algomap
+      POSTGRES_USER: algomap
+      POSTGRES_PASSWORD: algomap_secret_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U algomap"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - algomap-network
+
+  # RabbitMQ - очереди сообщений
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"    # AMQP порт
+      - "15672:15672"  # Management UI (http://localhost:15672, guest/guest)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - algomap-network
+
+  # =====================================================
+  # Backend API и Worker - для разработки запускаются ЛОКАЛЬНО
+  # См. инструкцию ниже в комментариях
+  # =====================================================
+  
+  # backend-api:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile.api
+  #   env_file:
+  #     - ./backend/.env.api.example
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+  #   networks:
+  #     - algomap-network
+
+  # backend-worker:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile.worker
+  #   env_file:
+  #     - ./backend/.env.worker.example
+  #   volumes:
+  #     - worker_data:/data
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+  #   networks:
+  #     - algomap-network
+
+  # =====================================================
+  # Frontend - для разработки запускается ЛОКАЛЬНО
+  # Production-сборка закомментирована
+  # =====================================================
+  
+  # frontend:
+  #   build:
+  #     context: ./front-end
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3000:80"
+  #   depends_on:
+  #     - backend-api
+  #   networks:
+  #     - algomap-network
+
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  worker_data:
+    driver: local
+
+networks:
+  algomap-network:
+    driver: bridge
+
+# =====================================================
+# ИНСТРУКЦИЯ ДЛЯ ЛОКАЛЬНОЙ РАЗРАБОТКИ
+# =====================================================
+#
+# 1. Поднять инфраструктуру (PostgreSQL + RabbitMQ):
+#    docker-compose up -d
+#
+# 2. Проверить, что всё поднялось:
+#    docker-compose ps
+#    
+#    RabbitMQ UI: http://localhost:15672 (guest/guest)
+#    PostgreSQL: localhost:5432 (algomap/algomap_secret_pass)
+#
+# 3. Настроить .env файлы для локального запуска:
+#    
+#    backend/.env.api:
+#      DATABASE_URL=postgresql://algomap:algomap_secret_pass@localhost:5432/algomap?sslmode=disable
+#      RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+#      LOG_LEVEL=debug
+#      PORT=8080
+#
+#    backend/.env.worker:
+#      DATABASE_URL=postgresql://algomap:algomap_secret_pass@localhost:5432/algomap?sslmode=disable
+#      RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+#      LOG_LEVEL=debug
+#
+#    frontend/.env:
+#      REACT_APP_API_URL=http://localhost:8080/api
+#
+# 4. Запустить Backend API (в отдельном терминале):
+#    cd backend
+#    go run cmd/api/main.go
+#
+# 5. Запустить Backend Worker (в отдельном терминале):
+#    cd backend
+#    go run cmd/worker/main.go
+#
+# 6. Запустить Frontend (в отдельном терминале):
+#    cd frontend
+#    npm install  # только первый раз
+#    npm start
+#
+# 7. Готово! 🎉
+#    Frontend: http://localhost:3000
+#    Backend API: http://localhost:8080
+#    RabbitMQ UI: http://localhost:15672
+#
+# =====================================================
+# ОСТАНОВКА
+# =====================================================
+#
+# Остановить инфраструктуру:
+#   docker-compose down
+#
+# Остановить и удалить данные:
+#   docker-compose down -v
+#
+# =====================================================
