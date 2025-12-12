@@ -118,3 +118,4 @@ backend/.env.worker
 frontend/.env
 
 .env
+docker-compose.yaml
