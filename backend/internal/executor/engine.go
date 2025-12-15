@@ -66,7 +66,7 @@ func NewEngine(db *sql.DB, logger *zap.Logger, registry *nodes.HandlerRegistry) 
 func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *bool, error) {
 	var needContinue bool = true
 
-	e.logger.Info("executing node",
+	e.logger.Info("Выполнение ноды: ",
 		zap.String("execution_id", msg.ExecutionID),
 		zap.String("node_id", msg.CurrentNodeID),
 	)
@@ -122,7 +122,7 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *
 
 	// 5. Выполняем ноду
 	startedAt := time.Now()
-	e.logger.Debug("Подготовка к выполнению ноды.",
+	e.logger.Log(-2, "Подготовка к выполнению ноды.",
 		zap.String("node_type", node.Data.Type),
 	)
 
@@ -200,7 +200,7 @@ func (e *Engine) Execute(ctx context.Context, msg *ExecutionMessage) (*string, *
 		return nil, &needContinue, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	e.logger.Info("node executed successfully",
+	e.logger.Info("Нода выполнена успешно: ",
 		zap.String("execution_id", msg.ExecutionID),
 		zap.String("node_id", msg.CurrentNodeID),
 		zap.String("status", result.Status),
@@ -336,7 +336,9 @@ func (e *Engine) updateContext(ctx *nodes.ExecutionContext, nodeID string, resul
 func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, exitHandle string) *string {
 	var defaultEdge *string
 
-	e.logger.Debug("searching for next node",
+	e.logger.Log(
+		-2,
+		"searching for next node",
 		zap.String("current_node", currentNodeID),
 		zap.String("exit_handle", exitHandle),
 		zap.Int("total_edges", len(schema.Edges)),
@@ -344,7 +346,9 @@ func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, ex
 
 	// Ищем edge для текущей ноды
 	for i, edge := range schema.Edges {
-		e.logger.Debug("checking edge",
+		e.logger.Log(
+			-2,
+			"checking edge",
 			zap.Int("index", i),
 			zap.String("source", edge.Source),
 			zap.String("target", edge.Target),
@@ -355,14 +359,16 @@ func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, ex
 			continue
 		}
 
-		e.logger.Debug("found matching source",
+		e.logger.Log(
+			-2,
+			"found matching source",
 			zap.String("target", edge.Target),
 			zap.String("sourceHandle", edge.SourceHandle),
 		)
 
 		// Если у edge есть конкретный sourceHandle и он совпадает - возвращаем сразу
 		if edge.SourceHandle != "" && edge.SourceHandle != "output" && edge.SourceHandle == exitHandle {
-			e.logger.Info("found specific exit path",
+			e.logger.Log(-2, "found specific exit path",
 				zap.String("exit_handle", exitHandle),
 				zap.String("next_node", edge.Target),
 			)
@@ -374,7 +380,9 @@ func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, ex
 		// React Flow использует "output" как дефолтный handle
 		if edge.SourceHandle == "" || edge.SourceHandle == "output" {
 			if defaultEdge == nil {
-				e.logger.Debug("found default edge",
+				e.logger.Log(
+					-2,
+					"found default edge",
 					zap.String("target", edge.Target),
 				)
 				target := edge.Target
@@ -385,7 +393,7 @@ func (e *Engine) findNextNode(schema *SchemaDefinition, currentNodeID string, ex
 
 	// Возвращаем дефолтный путь
 	if defaultEdge != nil {
-		e.logger.Info("using default path",
+		e.logger.Log(-2, "using default path",
 			zap.String("next_node", *defaultEdge),
 		)
 	} else {

@@ -95,7 +95,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 
 // handleMessage обрабатывает одно сообщение
 func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
-	c.logger.Debug("received message", zap.String("body", string(msg.Body)))
+	c.logger.Info("Сообщение из брокера очередей: ", zap.String("body", string(msg.Body)))
 
 	var execMsg executor.ExecutionMessage
 	if err := json.Unmarshal(msg.Body, &execMsg); err != nil {
@@ -106,7 +106,11 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 
 	// Выполняем ноду через engine (теперь возвращает nextNodeID)
 	nextNodeID, needContinue, err := c.engine.Execute(ctx, &execMsg)
-	c.logger.Debug("После выполнения ноды.", zap.Bool("Надо ли продолжать выполнение схемы: ", *needContinue) );
+	c.logger.Log(
+		-2, 
+		"После выполнения ноды.", 
+		zap.Bool("Надо ли продолжать выполнение схемы: ", *needContinue),
+	);
 	if err != nil {
 		c.logger.Error("failed to execute node",
 			zap.String("execution_id", execMsg.ExecutionID),
@@ -136,12 +140,7 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 			)
 			// TODO: Решить что делать если не удалось опубликовать
 			// Варианты: retry, DLQ, отметить execution как failed
-		} else {
-			c.logger.Debug("published next node",
-				zap.String("execution_id", execMsg.ExecutionID),
-				zap.String("next_node_id", *nextNodeID),
-			)
-		}
+		} 
 	}
 
 	// Подтверждаем обработку текущего сообщения

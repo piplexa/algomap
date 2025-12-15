@@ -84,8 +84,9 @@ func (p *Publisher) Publish(ctx context.Context, queueName string, message inter
 		return fmt.Errorf("failed to publish message: %w", err)
 	}
 
-	p.logger.Info("Message published",
+	p.logger.Info("Опубликовано сообщение в брокере очередей: ",
 		zap.String("queue", queueName),
+		zap.Any("body: ", message),
 		zap.Int("size", len(body)),
 	)
 
