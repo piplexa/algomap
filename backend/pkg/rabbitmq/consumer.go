@@ -107,10 +107,10 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 	// Выполняем ноду через engine (теперь возвращает nextNodeID)
 	nextNodeID, needContinue, err := c.engine.Execute(ctx, &execMsg)
 	c.logger.Log(
-		-2, 
-		"После выполнения ноды.", 
+		-2,
+		"После выполнения ноды.",
 		zap.Bool("Надо ли продолжать выполнение схемы: ", *needContinue),
-	);
+	)
 	if err != nil {
 		c.logger.Error("failed to execute node",
 			zap.String("execution_id", execMsg.ExecutionID),
@@ -138,7 +138,7 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 			)
 			// TODO: Решить что делать если не удалось опубликовать
 			// Варианты: retry, DLQ, отметить execution как failed
-		} 
+		}
 	}
 }
 
