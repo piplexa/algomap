@@ -7,6 +7,8 @@ export default function NodeConfigPanel({ node, onUpdate, onClose }) {
 
   useEffect(() => {
     if (node) {
+        console.log('config.body:', config.body);
+        console.dir(config.body);
       setConfig(node.data.config || {});
     }
   }, [node]);
@@ -163,6 +165,27 @@ function renderConfigFields(nodeType, config, handleChange, handleNestedChange) 
               Включить retry
             </label>
           </div>
+          <div className="form-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.body_enabled || false}
+                onChange={(e) => handleChange('body_enabled', e.target.checked)}
+              />
+              Тело запроса
+            </label>
+          </div>
+          {config.body_enabled && (
+            <div className="form-group">
+              <label>Тело</label>
+              <textarea
+                value={typeof config.body === 'string' ? config.body : ''}
+                onChange={(e) => handleChange('body', e.target.value)}
+                placeholder="{ 'foo': 'bar' } или {{variables.payload}}"
+                rows={6}
+              />
+            </div>
+          )}
         </>
       );
 
