@@ -64,7 +64,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 	msgs, err := channel.Consume(
 		QueueName,
 		"",    // consumer tag
-		false, // auto-ack (отключаем, будем ACK вручную)
+		true, // auto-ack (отключаем, будем ACK вручную)
 		false, // exclusive
 		false, // no-local
 		false, // no-wait
@@ -88,7 +88,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 				return fmt.Errorf("channel closed")
 			}
 
-			c.handleMessage(ctx, msg)
+			go c.handleMessage(ctx, msg)
 		}
 	}
 }
@@ -107,18 +107,16 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 	// Выполняем ноду через engine (теперь возвращает nextNodeID)
 	nextNodeID, needContinue, err := c.engine.Execute(ctx, &execMsg)
 	c.logger.Log(
-		-2, 
-		"После выполнения ноды.", 
+		-2,
+		"После выполнения ноды.",
 		zap.Bool("Надо ли продолжать выполнение схемы: ", *needContinue),
-	);
+	)
 	if err != nil {
 		c.logger.Error("failed to execute node",
 			zap.String("execution_id", execMsg.ExecutionID),
 			zap.String("node_id", execMsg.CurrentNodeID),
 			zap.Error(err),
 		)
-		// ACK даже при ошибке, чтобы не блокировать очередь
-		msg.Ack(false)
 		return
 	}
 
@@ -140,12 +138,7 @@ func (c *Consumer) handleMessage(ctx context.Context, msg amqp091.Delivery) {
 			)
 			// TODO: Решить что делать если не удалось опубликовать
 			// Варианты: retry, DLQ, отметить execution как failed
-		} 
-	}
-
-	// Подтверждаем обработку текущего сообщения
-	if err := msg.Ack(false); err != nil {
-		c.logger.Error("failed to ack message", zap.Error(err))
+		}
 	}
 }
 
